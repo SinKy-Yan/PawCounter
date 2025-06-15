@@ -22,6 +22,7 @@
  */
 
 #include "KeypadControl.h"
+#include "Logger.h"
 
 // 按键位置映射表定义
 const uint8_t KeypadControl::KEY_POSITIONS[] = {
@@ -80,19 +81,26 @@ KeypadControl::KeypadControl()
 }
 
 void KeypadControl::begin() {
+    KEYPAD_LOG_I("Initializing keypad control system");
+    
     // 初始化引脚
     pinMode(SCAN_PL_PIN, OUTPUT);
     pinMode(SCAN_CE_PIN, OUTPUT);
     pinMode(SCAN_CLK_PIN, OUTPUT);
     pinMode(SCAN_MISO_PIN, INPUT);
+    KEYPAD_LOG_D("GPIO pins configured");
 
     // 设置初始状态
     digitalWrite(SCAN_PL_PIN, HIGH);
     digitalWrite(SCAN_CE_PIN, LOW);
     digitalWrite(SCAN_CLK_PIN, LOW);
+    KEYPAD_LOG_D("Initial pin states set");
 
     // 初始化蜂鸣器PWM
     ledcAttachChannel(BUZZ_PIN, 2000, 8, BUZZER_CHANNEL);  // 8位分辨率
+    KEYPAD_LOG_D("Buzzer PWM initialized (2kHz, 8-bit, channel %d)", BUZZER_CHANNEL);
+    
+    KEYPAD_LOG_I("Keypad control system initialized successfully");
 }
 
 void KeypadControl::update() {
@@ -103,15 +111,12 @@ void KeypadControl::update() {
         // 读取当前按键状态
         _currentState = readShiftRegisters();
         
-        #ifdef DEBUG_MODE
         // 只在状态改变时输出调试信息，避免刷屏
         static uint32_t lastDebugState = 0xFFFFFF;
         if (_currentState != lastDebugState) {
-            Serial.print(F("[SCAN] Raw state: 0x"));
-            Serial.println(_currentState, HEX);
+            KEYPAD_LOG_V("Raw scan state: 0x%06X", _currentState);
             lastDebugState = _currentState;
         }
-        #endif
         
         // 去抖动处理
         if (currentTime - _lastDebounceTime >= DEBOUNCE_DELAY) {
@@ -146,29 +151,18 @@ void KeypadControl::update() {
 void KeypadControl::checkKeyStates(uint32_t buttonState) {
     _pressedKeyCount = 0;
     
-    #ifdef DEBUG_MODE
-    Serial.print(F("[CHECK] Button state: 0x"));
-    Serial.println(buttonState, HEX);
-    #endif
+    KEYPAD_LOG_V("Checking key states: 0x%06X", buttonState);
     
     // 检查每个按键的状态变化
     for (uint8_t i = 0; i < 22; i++) {
         bool isPressed = !(buttonState & (1UL << (KEY_POSITIONS[i] - 1)));
         
-        #ifdef DEBUG_MODE
-        // 输出每个按键的位检查详情
+        // 输出详细的位检查信息
         if (isPressed) {
-            Serial.print(F("[BIT] Key "));
-            Serial.print(i + 1);
-            Serial.print(F(" (pos "));
-            Serial.print(KEY_POSITIONS[i]);
-            Serial.print(F(") bit "));
-            Serial.print(KEY_POSITIONS[i] - 1);
-            Serial.print(F(" mask 0x"));
-            Serial.print(1UL << (KEY_POSITIONS[i] - 1), HEX);
-            Serial.println(F(" PRESSED"));
+            KEYPAD_LOG_V("Key %d (pos %d, bit %d, mask 0x%06X) detected as pressed", 
+                        i + 1, KEY_POSITIONS[i], KEY_POSITIONS[i] - 1, 
+                        1UL << (KEY_POSITIONS[i] - 1));
         }
-        #endif
         
         if (isPressed != _keyStates[i].pressed) {
             _keyStates[i].pressed = isPressed;
@@ -235,33 +229,27 @@ void KeypadControl::updateAutoRepeat() {
 }
 
 void KeypadControl::handleKeyEvent(KeyEventType type, uint8_t key) {
-    // 串口日志输出
-    #ifdef DEBUG_MODE
-    Serial.print(F("[KEY] "));
-    Serial.print(F("Key "));
-    Serial.print(key);
-    Serial.print(F(" - "));
+    // 使用日志系统输出按键事件
     switch (type) {
         case KEY_EVENT_PRESS:
-            Serial.println(F("PRESSED"));
+            KEYPAD_LOG_I("Key %d PRESSED", key);
             break;
         case KEY_EVENT_RELEASE:
-            Serial.println(F("RELEASED"));
+            KEYPAD_LOG_I("Key %d RELEASED", key);
             break;
         case KEY_EVENT_LONGPRESS:
-            Serial.println(F("LONG PRESSED"));
+            KEYPAD_LOG_I("Key %d LONG PRESSED", key);
             break;
         case KEY_EVENT_REPEAT:
-            Serial.println(F("REPEAT"));
+            KEYPAD_LOG_D("Key %d REPEAT", key);
             break;
         case KEY_EVENT_COMBO:
-            Serial.println(F("COMBO"));
+            KEYPAD_LOG_I("Key %d COMBO", key);
             break;
         default:
-            Serial.println(F("UNKNOWN"));
+            KEYPAD_LOG_W("Key %d UNKNOWN EVENT", key);
             break;
     }
-    #endif
     
     // 触发回调
     if (_eventCallback) {
