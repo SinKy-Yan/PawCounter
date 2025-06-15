@@ -172,7 +172,7 @@ void setup() {
     // 初始化日志系统
     Logger& logger = Logger::getInstance();
     LoggerConfig logConfig = Logger::getDefaultConfig();
-    logConfig.level = LOG_LEVEL_WARN;  // 设置为WARN级别，大幅减少日志输出
+    logConfig.level = LOG_LEVEL_INFO;  // 设置为WARN级别，大幅减少日志输出
     logger.begin(logConfig);
     
     LOG_I(TAG_MAIN, "=== 新版计算器系统启动 ===");

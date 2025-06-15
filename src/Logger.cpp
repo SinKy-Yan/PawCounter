@@ -124,6 +124,14 @@ const char* Logger::getLevelColor(log_level_t level) {
 void Logger::error(const char* tag, const char* format, ...) {
     if (!_initialized) return;
     
+    char newFormat[256];
+    size_t len = strlen(format);
+    if (len > 0 && format[len - 1] != '\n' && len < sizeof(newFormat) - 2) {
+        strcpy(newFormat, format);
+        newFormat[len] = '\n';
+        newFormat[len + 1] = '\0';
+        format = newFormat;
+    }
     va_list args;
     va_start(args, format);
     esp_log_writev(ESP_LOG_ERROR, tag, format, args);
@@ -133,6 +141,14 @@ void Logger::error(const char* tag, const char* format, ...) {
 void Logger::warn(const char* tag, const char* format, ...) {
     if (!_initialized) return;
     
+    char newFormat[256];
+    size_t len = strlen(format);
+    if (len > 0 && format[len - 1] != '\n' && len < sizeof(newFormat) - 2) {
+        strcpy(newFormat, format);
+        newFormat[len] = '\n';
+        newFormat[len + 1] = '\0';
+        format = newFormat;
+    }
     va_list args;
     va_start(args, format);
     esp_log_writev(ESP_LOG_WARN, tag, format, args);
@@ -142,6 +158,14 @@ void Logger::warn(const char* tag, const char* format, ...) {
 void Logger::info(const char* tag, const char* format, ...) {
     if (!_initialized) return;
     
+    char newFormat[256];
+    size_t len = strlen(format);
+    if (len > 0 && format[len - 1] != '\n' && len < sizeof(newFormat) - 2) {
+        strcpy(newFormat, format);
+        newFormat[len] = '\n';
+        newFormat[len + 1] = '\0';
+        format = newFormat;
+    }
     va_list args;
     va_start(args, format);
     esp_log_writev(ESP_LOG_INFO, tag, format, args);
@@ -151,6 +175,14 @@ void Logger::info(const char* tag, const char* format, ...) {
 void Logger::debug(const char* tag, const char* format, ...) {
     if (!_initialized) return;
     
+    char newFormat[256];
+    size_t len = strlen(format);
+    if (len > 0 && format[len - 1] != '\n' && len < sizeof(newFormat) - 2) {
+        strcpy(newFormat, format);
+        newFormat[len] = '\n';
+        newFormat[len + 1] = '\0';
+        format = newFormat;
+    }
     va_list args;
     va_start(args, format);
     esp_log_writev(ESP_LOG_DEBUG, tag, format, args);
@@ -160,6 +192,14 @@ void Logger::debug(const char* tag, const char* format, ...) {
 void Logger::verbose(const char* tag, const char* format, ...) {
     if (!_initialized) return;
     
+    char newFormat[256];
+    size_t len = strlen(format);
+    if (len > 0 && format[len - 1] != '\n' && len < sizeof(newFormat) - 2) {
+        strcpy(newFormat, format);
+        newFormat[len] = '\n';
+        newFormat[len + 1] = '\0';
+        format = newFormat;
+    }
     va_list args;
     va_start(args, format);
     esp_log_writev(ESP_LOG_VERBOSE, tag, format, args);
