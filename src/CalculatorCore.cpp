@@ -11,31 +11,31 @@
 #include "CalculationEngine.h"
 #include "CalculatorModes.h"
 
-// 按键映射表定义（基于实际矩阵扫描顺序）
+// 按键映射表定义（基于实际物理按键编号 1-22）
 const KeyMapping CalculatorCore::_keyMappings[] = {
-// 扫描顺序索引 -> 实际按键功能
-{0,  KeyType::POWER,     "ON",  "POWER",     Operator::NONE,     0},  // 扫描索引0 = KEY1(on/off)
-{1,  KeyType::NUMBER,    "7",   "SEVEN",     Operator::NONE,     0},  // 扫描索引1 = KEY2(7)
-{2,  KeyType::NUMBER,    "4",   "FOUR",      Operator::NONE,     0},  // 扫描索引2 = KEY3(4)
-{3,  KeyType::NUMBER,    "1",   "ONE",       Operator::NONE,     0},  // 扫描索引3 = KEY4(1)
-{4,  KeyType::NUMBER,    "0",   "ZERO",      Operator::NONE,     0},  // 扫描索引4 = KEY5(0)
-{5,  KeyType::NUMBER,    "5",   "FIVE",      Operator::NONE,     0},  // 扫描索引5 = KEY8(5)
-{6,  KeyType::NUMBER,    "2",   "TWO",       Operator::NONE,     0},  // 扫描索引6 = KEY9(2)
-{7,  KeyType::NUMBER,    "6",   "SIX",       Operator::NONE,     0},  // 扫描索引7 = KEY12(6)
-{8,  KeyType::NUMBER,    "3",   "THREE",     Operator::NONE,     0},  // 扫描索引8 = KEY13(3)
-{9,  KeyType::DECIMAL,   ".",   "DOT",       Operator::NONE,     0},  // 扫描索引9 = KEY14(.)
-{10, KeyType::OPERATOR,  "-",   "SUB",       Operator::SUBTRACT, 0},  // 扫描索引10 = KEY17(-)
-{11, KeyType::OPERATOR,  "+",   "ADD",       Operator::ADD,      0},  // 扫描索引11 = KEY18(+)
-{12, KeyType::OPERATOR,  "/",   "DIV",       Operator::DIVIDE,   0},  // 扫描索引12 = KEY21(/)
-{13, KeyType::FUNCTION,  "=",   "EQUALS",    Operator::EQUALS,   0},  // 扫描索引13 = KEY22(=)
-{14, KeyType::FUNCTION,  "±",   "SIGN",      Operator::NONE,     0},  // 扫描索引14 = KEY20(-/+)
-{15, KeyType::OPERATOR,  "*",   "MUL",       Operator::MULTIPLY, 0},  // 扫描索引15 = KEY16(*)
-{16, KeyType::NUMBER,    "9",   "NINE",      Operator::NONE,     0},  // 扫描索引16 = KEY11(9)
-{17, KeyType::NUMBER,    "8",   "EIGHT",     Operator::NONE,     0},  // 扫描索引17 = KEY7(8)
-{18, KeyType::FUNCTION,  "BL",  "BACKLIGHT", Operator::NONE,     0},  // 扫描索引18 = KEY6(bl)
-{19, KeyType::FUNCTION,  "%",   "PERCENT",   Operator::NONE,     0},  // 扫描索引19 = KEY10(%)
-{20, KeyType::FUNCTION,  "C",   "CLEAR",     Operator::NONE,     0},  // 扫描索引20 = KEY15(c)
-{21, KeyType::FUNCTION,  "DEL", "DELETE",    Operator::NONE,     0}   // 扫描索引21 = KEY19(del)
+// 物理按键编号 -> 实际按键功能（与Calculator.cpp中的KEY_FUNCTIONS对应）
+{1,  KeyType::POWER,     "ON",  "POWER",     Operator::NONE,     0},  // Key 1: ON/OFF
+{2,  KeyType::NUMBER,    "7",   "SEVEN",     Operator::NONE,     0},  // Key 2: 7
+{3,  KeyType::NUMBER,    "4",   "FOUR",      Operator::NONE,     0},  // Key 3: 4
+{4,  KeyType::NUMBER,    "1",   "ONE",       Operator::NONE,     0},  // Key 4: 1
+{5,  KeyType::NUMBER,    "0",   "ZERO",      Operator::NONE,     0},  // Key 5: 0
+{6,  KeyType::FUNCTION,  "BT",  "BLUETOOTH", Operator::NONE,     0},  // Key 6: BT
+{7,  KeyType::NUMBER,    "8",   "EIGHT",     Operator::NONE,     0},  // Key 7: 8
+{8,  KeyType::NUMBER,    "5",   "FIVE",      Operator::NONE,     0},  // Key 8: 5
+{9,  KeyType::NUMBER,    "2",   "TWO",       Operator::NONE,     0},  // Key 9: 2
+{10, KeyType::FUNCTION,  "%",   "PERCENT",   Operator::NONE,     0},  // Key 10: PCT
+{11, KeyType::NUMBER,    "9",   "NINE",      Operator::NONE,     0},  // Key 11: 9
+{12, KeyType::NUMBER,    "6",   "SIX",       Operator::NONE,     0},  // Key 12: 6
+{13, KeyType::NUMBER,    "3",   "THREE",     Operator::NONE,     0},  // Key 13: 3
+{14, KeyType::DECIMAL,   ".",   "DOT",       Operator::NONE,     0},  // Key 14: .
+{15, KeyType::FUNCTION,  "C",   "CLEAR",     Operator::NONE,     0},  // Key 15: C
+{16, KeyType::OPERATOR,  "*",   "MUL",       Operator::MULTIPLY, 0},  // Key 16: MUL
+{17, KeyType::OPERATOR,  "-",   "SUB",       Operator::SUBTRACT, 0},  // Key 17: SUB
+{18, KeyType::OPERATOR,  "+",   "ADD",       Operator::ADD,      0},  // Key 18: ADD
+{19, KeyType::FUNCTION,  "DEL", "DELETE",    Operator::NONE,     0},  // Key 19: DEL
+{20, KeyType::FUNCTION,  "±",   "SIGN",      Operator::NONE,     0},  // Key 20: +/-
+{21, KeyType::OPERATOR,  "/",   "DIV",       Operator::DIVIDE,   0},  // Key 21: DIV
+{22, KeyType::FUNCTION,  "=",   "EQUALS",    Operator::EQUALS,   0}   // Key 22: EQ
 };
 
 
@@ -232,20 +232,24 @@ const KeyMapping* CalculatorCore::findKeyMapping(uint8_t position) const {
 void CalculatorCore::handleDigitInput(char digit) {
     CALC_LOG_V("Digit input: %c", digit);
     
-    if (_state == CalculatorState::DISPLAY_RESULT) {
-        // 如果当前显示结果，输入数字开始新计算
+    if (_state == CalculatorState::DISPLAY_RESULT || _state == CalculatorState::INPUT_OPERATOR) {
+        // 如果当前显示结果或刚输入运算符，输入数字开始新输入
         _inputBuffer = "";
         _state = CalculatorState::INPUT_NUMBER;
+        _hasDecimalPoint = false;  // 重置小数点标志
     }
     
     if (digit == '.') {
         if (_inputBuffer.isEmpty()) {
             _inputBuffer = "0.";
-        } else {
+            _hasDecimalPoint = true;
+        } else if (!_hasDecimalPoint) {
             _inputBuffer += digit;
+            _hasDecimalPoint = true;
         }
+        // 如果已有小数点，忽略此次输入
     } else {
-        if (_inputBuffer == "0") {
+        if (_inputBuffer.isEmpty() || _inputBuffer == "0") {
             _inputBuffer = String(digit);
         } else {
             _inputBuffer += digit;
@@ -254,17 +258,20 @@ void CalculatorCore::handleDigitInput(char digit) {
     
     _currentDisplay = _inputBuffer;
     _currentNumber = _inputBuffer.toDouble();
+    
+    CALC_LOG_D("After digit input: buffer='%s', number=%.6f", _inputBuffer.c_str(), _currentNumber);
 }
 
 void CalculatorCore::handleOperatorInput(Operator op) {
     CALC_LOG_V("Operator input: %d", (int)op);
     
-    if (_state == CalculatorState::INPUT_NUMBER) {
-        if (_pendingOperator != Operator::NONE) {
+    if (_state == CalculatorState::INPUT_NUMBER || _state == CalculatorState::DISPLAY_RESULT) {
+        if (_pendingOperator != Operator::NONE && _state == CalculatorState::INPUT_NUMBER) {
             // 执行待处理的运算
             if (!performCalculation()) {
                 return;
             }
+            // performCalculation会设置_previousNumber = result
         } else {
             _previousNumber = _currentNumber;
         }
@@ -272,10 +279,33 @@ void CalculatorCore::handleOperatorInput(Operator op) {
         _pendingOperator = op;
         _state = CalculatorState::INPUT_OPERATOR;
         _waitingForOperand = true;
-        _hasDecimalPoint = false;
         
         // 更新表达式显示
-        _expressionDisplay = formatNumber(_previousNumber) + " " + String(_keyMappings[0].symbol) + " ";
+        String opSymbol = "";
+        switch(op) {
+            case Operator::ADD: opSymbol = "+"; break;
+            case Operator::SUBTRACT: opSymbol = "-"; break;
+            case Operator::MULTIPLY: opSymbol = "*"; break;
+            case Operator::DIVIDE: opSymbol = "/"; break;
+            default: opSymbol = "?"; break;
+        }
+        _expressionDisplay = formatNumber(_previousNumber) + " " + opSymbol + " ";
+        
+        CALC_LOG_D("Operator set: previous=%.6f, op=%s, waiting for operand", 
+                   _previousNumber, opSymbol.c_str());
+    } else if (_state == CalculatorState::INPUT_OPERATOR) {
+        // 如果已经在等待操作数状态，只是更换运算符
+        _pendingOperator = op;
+        String opSymbol = "";
+        switch(op) {
+            case Operator::ADD: opSymbol = "+"; break;
+            case Operator::SUBTRACT: opSymbol = "-"; break;
+            case Operator::MULTIPLY: opSymbol = "*"; break;
+            case Operator::DIVIDE: opSymbol = "/"; break;
+            default: opSymbol = "?"; break;
+        }
+        _expressionDisplay = formatNumber(_previousNumber) + " " + opSymbol + " ";
+        CALC_LOG_D("Operator changed to: %s", opSymbol.c_str());
     }
 }
 
@@ -288,8 +318,37 @@ void CalculatorCore::handleFunctionInput(const KeyMapping* mapping) {
         }
     } else if (String(mapping->label) == "CLEAR") {
         clearAll();
-    } else if (String(mapping->label) == "CE") {
-        clearEntry();
+    } else if (String(mapping->label) == "DELETE") {
+        // 删除最后一个字符
+        if (!_inputBuffer.isEmpty()) {
+            if (_inputBuffer.charAt(_inputBuffer.length() - 1) == '.') {
+                _hasDecimalPoint = false;
+            }
+            _inputBuffer.remove(_inputBuffer.length() - 1);
+            if (_inputBuffer.isEmpty()) {
+                _inputBuffer = "0";
+            }
+            _currentDisplay = _inputBuffer;
+            _currentNumber = _inputBuffer.toDouble();
+        }
+    } else if (String(mapping->label) == "SIGN") {
+        // 正负号切换
+        if (_inputBuffer.isEmpty() || _inputBuffer == "0") {
+            _inputBuffer = "0";
+        } else {
+            if (_inputBuffer.charAt(0) == '-') {
+                _inputBuffer = _inputBuffer.substring(1);
+            } else {
+                _inputBuffer = "-" + _inputBuffer;
+            }
+            _currentDisplay = _inputBuffer;
+            _currentNumber = _inputBuffer.toDouble();
+        }
+    } else if (String(mapping->label) == "PERCENT") {
+        // 百分号功能
+        _currentNumber = _currentNumber / 100.0;
+        _inputBuffer = formatNumber(_currentNumber);
+        _currentDisplay = _inputBuffer;
     } else if (mapping->operation == Operator::SQUARE_ROOT) {
         if (_engine) {
             auto result = _engine->calculate(_currentNumber, Operator::SQUARE_ROOT);
@@ -316,18 +375,33 @@ bool CalculatorCore::performCalculation() {
     auto result = _engine->calculate(_previousNumber, _currentNumber, _pendingOperator);
     
     if (result.isValid) {
+        // 保存操作数用于历史记录
+        double leftOperand = _previousNumber;
+        double rightOperand = _currentNumber;
+        
+        // 更新当前数字和显示
         _currentNumber = result.value;
+        _previousNumber = result.value;  // 为链式运算准备
         _currentDisplay = formatNumber(_currentNumber);
         _state = CalculatorState::DISPLAY_RESULT;
         
         // 添加到历史记录
-        String expr = formatNumber(_previousNumber) + " " + 
-                     String(_keyMappings[0].symbol) + " " + 
-                     formatNumber(_currentNumber);
+        String opSymbol = "";
+        switch(_pendingOperator) {
+            case Operator::ADD: opSymbol = "+"; break;
+            case Operator::SUBTRACT: opSymbol = "-"; break;
+            case Operator::MULTIPLY: opSymbol = "*"; break;
+            case Operator::DIVIDE: opSymbol = "/"; break;
+            default: opSymbol = "?"; break;
+        }
+        String expr = formatNumber(leftOperand) + " " + opSymbol + " " + formatNumber(rightOperand);
         addToHistory(expr, result.value);
         
         _pendingOperator = Operator::NONE;
         _waitingForOperand = false;
+        
+        CALC_LOG_D("Calculation result: %.6f, updated previous=%.6f", 
+                   _currentNumber, _previousNumber);
         return true;
     } else {
         setError(result.error);
