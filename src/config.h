@@ -13,7 +13,6 @@
 #define LCD_RST  48  // Reset
 #define LCD_CS   45  // Chip Select
 #define LCD_SCK  39  // Clock
-#define LCD_RD   40  // Read
 #define LCD_BL   42  // Backlight
 
 #define LCD_A3   21  // Address
@@ -34,10 +33,7 @@
 
 #define RGB_PIN 46
 #define NUM_LEDS 22        // 总共22个LED
-#define LED_TYPE WS2812    // LED类型
-#define COLOR_ORDER GRB    // 颜色顺序
 #define LED_BRIGHTNESS 100 // LED默认亮度 (0-255)
-#define FASTLED_RMT_CHANNEL 0  // 指定 FastLED 使用 RMT 通道 0
 #define LED_FADE_DURATION 500  // LED渐变持续时间(ms)
 extern CRGB leds[NUM_LEDS];
 
@@ -48,30 +44,14 @@ extern CRGB leds[NUM_LEDS];
 // MAX17048引脚定义
 #define MAX17048_SDA_PIN  11  // I2C SDA
 #define MAX17048_SCL_PIN  12  // I2C SCL
-#define MAX17048_INT_PIN  14  // 中断引脚
 
 // 背光控制通道参数设置
 #define LEDC_TIMER_BIT 8    // 8 位分辨率（0-255）
 #define LEDC_BASE_FREQ 1000 // 1kHz 频率
 #define LEDC_CHANNEL_0 1       // 修改 LEDC 通道为 1，避免与 RMT 冲突
 
-// 组合键定义
-#define CURSOR_MODIFIER_KEY 5          // 光标修饰键(0键)
-#define CURSOR_LEFT_KEY 18             // 光标左移键(+键)
-#define CURSOR_RIGHT_KEY 22            // 光标右移键(=键)
-
 // 蜂鸣器配置
-#define BUZZ_PIN      4         // 蜂鸣器引脚
 #define BUZZER_CHANNEL 2        // 使用LEDC通道2
-#define BUZZER_RESOLUTION 8     // PWM分辨率，8位(0-255)
-#define BUZZER_BASE_FREQ 2000   // 基础频率2kHz
-
-// LED到按键的映射关系
-const int LED_TO_KEY_MAP[NUM_LEDS] = {
-    7, 6, 5, 4, 3, 2, 1, 0,      
-    15, 14, 13, 12, 11, 10, 9, 8, 
-    23, 22, 21, 20, 19, 18
-};
 
 // 实际按键布局矩阵
 const int KEY_MATRIX[5][5] = {

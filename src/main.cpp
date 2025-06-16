@@ -294,8 +294,11 @@ void setup() {
     // 初始化日志系统
     Logger& logger = Logger::getInstance();
     LoggerConfig logConfig = Logger::getDefaultConfig();
-    logConfig.level = LOG_LEVEL_INFO;  // 设置为WARN级别，大幅减少日志输出
+    logConfig.level = LOG_LEVEL_INFO;  // 设置为INFO级别
     logger.begin(logConfig);
+    
+    // 启用自定义日志格式，在每行前显示日志等级
+    logger.setCustomFormat(true);
     
     LOG_I(TAG_MAIN, "=== 新版计算器系统启动 ===");
     LOG_I(TAG_MAIN, "版本: 2.0 - 可扩展架构");

@@ -140,6 +140,12 @@ public:
     void flush();
 
     /**
+     * @brief 设置自定义日志输出函数
+     * @param enable true使用自定义格式，false使用系统默认格式
+     */
+    void setCustomFormat(bool enable = true);
+
+    /**
      * @brief 获取当前配置
      * @return const LoggerConfig& 当前配置引用
      */
@@ -159,6 +165,8 @@ private:
 
     LoggerConfig _config;           ///< 日志配置
     bool _initialized;              ///< 初始化状态
+    bool _customFormat;             ///< 是否使用自定义格式
+    static Logger* _instance;       ///< 单例实例指针（用于静态回调）
 
     /**
      * @brief 转换日志级别到ESP-IDF格式
@@ -176,10 +184,34 @@ private:
 
     /**
      * @brief 获取日志级别颜色代码
-     * @param level 日志级别
+     * @param level 日志级别  
      * @return const char* ANSI颜色代码
      */
     const char* getLevelColor(log_level_t level);
+
+    /**
+     * @brief 自定义日志输出函数
+     * @param format 格式化字符串
+     * @param args 参数列表
+     * @return int 输出字符数
+     */
+    static int customVprintf(const char* format, va_list args);
+
+    /**
+     * @brief 格式化并输出日志
+     * @param level 日志级别
+     * @param tag 标签
+     * @param format 格式化字符串
+     * @param args 参数列表
+     */
+    void formatAndPrint(log_level_t level, const char* tag, const char* format, va_list args);
+
+    /**
+     * @brief 获取日志级别缩写
+     * @param level 日志级别
+     * @return const char* 级别缩写（如 E, W, I, D, V）
+     */
+    const char* getLevelChar(log_level_t level);
 };
 
 // 模块标签定义
