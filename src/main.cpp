@@ -370,8 +370,8 @@ void handleSerialCommands() {
             
         } else if (command == "startup") {
             LOG_I(TAG_MAIN, "=== 测试启动效果 ===");
-            LED_MGR.startupEffect();
-            BUZZER_MGR.startupSound();
+            FEEDBACK_MGR.triggerSystemFeedback(SCENE_SYSTEM_STARTUP);
+            FEEDBACK_MGR.update();  // 立即更新以确保效果开始
             LOG_I(TAG_MAIN, "启动效果已触发");
             
         } else if (command == "fasttest") {
@@ -486,6 +486,10 @@ void setup() {
     // 在所有初始化完成后播放启动动画
     LOG_I(TAG_MAIN, "播放启动动画...");
     FEEDBACK_MGR.triggerSystemFeedback(SCENE_SYSTEM_STARTUP);
+    
+    // 立即执行一次更新循环以确保动画开始
+    FEEDBACK_MGR.update();
+    LOG_I(TAG_MAIN, "启动动画更新完成");
 }
 
 /**

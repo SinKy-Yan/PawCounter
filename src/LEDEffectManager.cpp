@@ -172,7 +172,15 @@ void LEDEffectManager::setGlobalEffect(const LEDEffectConfig& config) {
     _globalEffect.progress = 0.0;
     _globalEffect.phase = 0;
 
-    LOG_D(TAG_SYSTEM, "Set global effect: type=%d", config.type);
+    LOG_I(TAG_SYSTEM, "Set global effect: type=%d, duration=%d, speed=%d, active=%d", 
+          config.type, config.duration, config.speed, _globalEffect.active);
+    
+    // 对于闪烁效果，立即应用一次以确保立即可见
+    if (config.type == LED_EFFECT_BLINK) {
+        applyGlobalEffectToAllLEDs();
+        FastLED.show();
+        LOG_I(TAG_SYSTEM, "Global blink effect applied immediately");
+    }
 }
 
 void LEDEffectManager::stopAllEffects() {
@@ -596,6 +604,17 @@ void LEDEffectManager::applyGlobalEffectToAllLEDs() {
             
         case LED_EFFECT_RAINBOW_CYCLE:
             applyRainbowCycleEffect();
+            break;
+            
+        case LED_EFFECT_BLINK:
+            // 闪烁效果应用到所有LED，忽略单独效果
+            {
+                CRGB color = calculateEffectColor(_globalEffect);
+                color = applyBrightness(color, _globalEffect.config.brightness);
+                for (uint8_t i = 0; i < NUM_LEDS; i++) {
+                    leds[i] = color;
+                }
+            }
             break;
             
         default:
