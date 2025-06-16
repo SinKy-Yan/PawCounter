@@ -10,29 +10,31 @@
 #include "CalculatorDisplay.h"
 #include "CalculationEngine.h"
 #include "CalculatorModes.h"
+#include "KeyboardConfig.h"
 
 // 按键映射表定义（基于实际物理按键编号 1-22）
+// 修改后的布局：Key 19改为清除，Key 15改为向前删除，Key 6改为Tab
 const KeyMapping CalculatorCore::_keyMappings[] = {
-// 物理按键编号 -> 实际按键功能（与Calculator.cpp中的KEY_FUNCTIONS对应）
+// 物理按键编号 -> 实际按键功能
 {1,  KeyType::POWER,     "ON",  "POWER",     Operator::NONE,     0},  // Key 1: ON/OFF
 {2,  KeyType::NUMBER,    "7",   "SEVEN",     Operator::NONE,     0},  // Key 2: 7
 {3,  KeyType::NUMBER,    "4",   "FOUR",      Operator::NONE,     0},  // Key 3: 4
 {4,  KeyType::NUMBER,    "1",   "ONE",       Operator::NONE,     0},  // Key 4: 1
 {5,  KeyType::NUMBER,    "0",   "ZERO",      Operator::NONE,     0},  // Key 5: 0
-{6,  KeyType::FUNCTION,  "BT",  "BLUETOOTH", Operator::NONE,     0},  // Key 6: BT
+{6,  KeyType::MODE_SWITCH,"TAB", "LAYER_SWITCH", Operator::NONE, 0},  // Key 6: TAB (层级切换)
 {7,  KeyType::NUMBER,    "8",   "EIGHT",     Operator::NONE,     0},  // Key 7: 8
 {8,  KeyType::NUMBER,    "5",   "FIVE",      Operator::NONE,     0},  // Key 8: 5
 {9,  KeyType::NUMBER,    "2",   "TWO",       Operator::NONE,     0},  // Key 9: 2
-{10, KeyType::FUNCTION,  "%",   "PERCENT",   Operator::NONE,     0},  // Key 10: PCT
+{10, KeyType::FUNCTION,  "%",   "PERCENT",   Operator::PERCENT,  0},  // Key 10: PCT
 {11, KeyType::NUMBER,    "9",   "NINE",      Operator::NONE,     0},  // Key 11: 9
 {12, KeyType::NUMBER,    "6",   "SIX",       Operator::NONE,     0},  // Key 12: 6
 {13, KeyType::NUMBER,    "3",   "THREE",     Operator::NONE,     0},  // Key 13: 3
 {14, KeyType::DECIMAL,   ".",   "DOT",       Operator::NONE,     0},  // Key 14: .
-{15, KeyType::FUNCTION,  "C",   "CLEAR",     Operator::NONE,     0},  // Key 15: C
+{15, KeyType::FUNCTION,  "⌫",   "BACKSPACE", Operator::NONE,     0},  // Key 15: 向前删除
 {16, KeyType::OPERATOR,  "*",   "MUL",       Operator::MULTIPLY, 0},  // Key 16: MUL
 {17, KeyType::OPERATOR,  "-",   "SUB",       Operator::SUBTRACT, 0},  // Key 17: SUB
 {18, KeyType::OPERATOR,  "+",   "ADD",       Operator::ADD,      0},  // Key 18: ADD
-{19, KeyType::FUNCTION,  "DEL", "DELETE",    Operator::NONE,     0},  // Key 19: DEL
+{19, KeyType::FUNCTION,  "C",   "CLEAR",     Operator::NONE,     0},  // Key 19: 清除
 {20, KeyType::FUNCTION,  "±",   "SIGN",      Operator::NONE,     0},  // Key 20: +/-
 {21, KeyType::OPERATOR,  "/",   "DIV",       Operator::DIVIDE,   0},  // Key 21: DIV
 {22, KeyType::FUNCTION,  "=",   "EQUALS",    Operator::EQUALS,   0}   // Key 22: EQ
@@ -64,6 +66,12 @@ CalculatorCore::~CalculatorCore() {
 bool CalculatorCore::begin() {
     CALC_LOG_I("Starting calculator core initialization");
     
+    // 初始化键盘配置管理器
+    if (!keyboardConfig.begin()) {
+        CALC_LOG_E("Failed to initialize keyboard configuration");
+        return false;
+    }
+    
     // 初始化状态
     _state = CalculatorState::INPUT_NUMBER;
     _currentDisplay = "0";
@@ -78,17 +86,27 @@ bool CalculatorCore::begin() {
     return true;
 }
 
-bool CalculatorCore::handleKeyInput(uint8_t keyPosition) {
-    CALC_LOG_D("Handling key input: position %d", keyPosition);
+bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
+    CALC_LOG_D("Handling key input: position %d, long press: %d", keyPosition, isLongPress);
     
-    // 查找按键映射
-    const KeyMapping* mapping = findKeyMapping(keyPosition);
-    if (!mapping) {
-        CALC_LOG_W("No mapping found for key position %d", keyPosition);
-        return false;
+    // 首先检查是否为Tab键（层级切换）
+    if (keyPosition == keyboardConfig.getLayoutConfig().tabKeyPosition) {
+        return keyboardConfig.handleTabKey(isLongPress);
     }
     
-    CALC_LOG_V("Key mapped to: %s (type: %d)", mapping->symbol, (int)mapping->type);
+    // 从键盘配置管理器获取当前层级的按键配置
+    const KeyConfig* keyConfig = keyboardConfig.getKeyConfig(keyPosition, keyboardConfig.getCurrentLayer());
+    if (!keyConfig) {
+        // 如果当前层级没有配置，尝试从主层级获取
+        keyConfig = keyboardConfig.getKeyConfig(keyPosition, KeyLayer::PRIMARY);
+        if (!keyConfig) {
+            CALC_LOG_W("No key configuration found for position %d", keyPosition);
+            return false;
+        }
+    }
+    
+    CALC_LOG_V("Key mapped to: %s (type: %d, layer: %d)", 
+               keyConfig->symbol.c_str(), (int)keyConfig->type, (int)keyboardConfig.getCurrentLayer());
     
     // 清除错误状态
     if (_lastError != CalculatorError::NONE) {
@@ -97,9 +115,11 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition) {
     }
     
     // 处理不同类型的按键
-    switch (mapping->type) {
+    switch (keyConfig->type) {
         case KeyType::NUMBER:
-            handleDigitInput(mapping->symbol[0]);
+            if (!keyConfig->symbol.isEmpty()) {
+                handleDigitInput(keyConfig->symbol[0]);
+            }
             break;
             
         case KeyType::DECIMAL:
@@ -110,20 +130,31 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition) {
             break;
             
         case KeyType::OPERATOR:
-            handleOperatorInput(mapping->operation);
+            handleOperatorInput(keyConfig->operation);
             break;
             
         case KeyType::FUNCTION:
-            handleFunctionInput(mapping);
+            handleFunctionInput(keyConfig);
+            break;
+            
+        case KeyType::CLEAR:
+            handleClear();
+            break;
+            
+        case KeyType::DELETE:
+            handleBackspace();
+            break;
+            
+        case KeyType::LAYER_SWITCH:
+            // Tab键已在上面处理
             break;
             
         case KeyType::MODE_SWITCH:
-            // 模式切换逻辑
-            CALC_LOG_I("Mode switch requested");
+            handleModeSwitch();
             break;
             
         default:
-            CALC_LOG_W("Unhandled key type: %d", (int)mapping->type);
+            CALC_LOG_W("Unhandled key type: %d", (int)keyConfig->type);
             return false;
     }
     
@@ -443,5 +474,83 @@ String CalculatorCore::formatNumber(double number) const {
         return String(number, 6);  // 科学计数法
     } else {
         return String(number, 6);
+    }
+}
+
+// ============================================================================
+// 新的按键处理方法实现
+// ============================================================================
+
+void CalculatorCore::handleFunctionInput(const KeyConfig* keyConfig) {
+    CALC_LOG_V("Function input (new): %s", keyConfig->label.c_str());
+    
+    if (keyConfig->operation == Operator::EQUALS) {
+        if (_pendingOperator != Operator::NONE) {
+            performCalculation();
+        }
+    } else if (keyConfig->operation == Operator::PERCENT) {
+        // 处理百分比
+        if (_state == CalculatorState::INPUT_NUMBER) {
+            _currentNumber = _currentNumber / 100.0;
+            _currentDisplay = formatNumber(_currentNumber);
+            _inputBuffer = _currentDisplay;
+        }
+    } else if (keyConfig->functionName == "sign") {
+        // 处理正负号切换
+        if (_state == CalculatorState::INPUT_NUMBER) {
+            _currentNumber = -_currentNumber;
+            _currentDisplay = formatNumber(_currentNumber);
+            _inputBuffer = _currentDisplay;
+        }
+    } else {
+        // 处理其他自定义函数
+        CALC_LOG_I("Custom function: %s", keyConfig->functionName.c_str());
+        // 这里可以扩展其他功能
+    }
+}
+
+void CalculatorCore::handleClear() {
+    CALC_LOG_D("Clear operation");
+    clearAll();
+}
+
+void CalculatorCore::handleBackspace() {
+    CALC_LOG_D("Backspace operation");
+    
+    if (_state == CalculatorState::INPUT_NUMBER && !_inputBuffer.isEmpty()) {
+        // 删除最后一个字符
+        char lastChar = _inputBuffer.charAt(_inputBuffer.length() - 1);
+        _inputBuffer.remove(_inputBuffer.length() - 1);
+        
+        // 如果删除的是小数点，重置小数点标志
+        if (lastChar == '.') {
+            _hasDecimalPoint = false;
+        }
+        
+        // 更新当前数字和显示
+        if (_inputBuffer.isEmpty()) {
+            _currentNumber = 0.0;
+            _currentDisplay = "0";
+            _inputBuffer = "";
+        } else {
+            _currentNumber = _inputBuffer.toDouble();
+            _currentDisplay = _inputBuffer;
+        }
+        
+        CALC_LOG_V("After backspace: buffer='%s', number=%.6f", 
+                   _inputBuffer.c_str(), _currentNumber);
+    }
+}
+
+void CalculatorCore::handleModeSwitch() {
+    CALC_LOG_I("Mode switch requested");
+    
+    // 简单的模式切换：在基本模式和财务模式间切换
+    uint8_t nextModeId = (_currentModeId == 0) ? 1 : 0;
+    
+    if (nextModeId < _modes.size()) {
+        switchMode(nextModeId);
+    } else {
+        CALC_LOG_W("Mode %d not available", nextModeId);
     }
 }

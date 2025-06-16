@@ -22,6 +22,7 @@
 #include <vector>
 #include <memory>
 #include "Logger.h"
+#include "KeyboardConfig.h"
 
 // 前向声明
 class CalculatorDisplay;
@@ -29,35 +30,8 @@ class CalculationEngine;
 class CalculatorMode;
 class NumberFormatter;
 
-/**
- * @brief 按键类型枚举
- */
-enum class KeyType {
-    NUMBER = 0,         ///< 数字键 (0-9)
-    OPERATOR,           ///< 运算符 (+, -, *, /)
-    FUNCTION,           ///< 功能键 (=, C, CE, ±)
-    DECIMAL,            ///< 小数点
-    MODE_SWITCH,        ///< 模式切换
-    MEMORY,             ///< 内存操作 (M+, M-, MR, MC)
-    POWER,              ///< 电源相关
-    RESERVED            ///< 保留功能
-};
-
-/**
- * @brief 运算符类型
- */
-enum class Operator {
-    NONE = 0,
-    ADD,                ///< 加法
-    SUBTRACT,           ///< 减法
-    MULTIPLY,           ///< 乘法
-    DIVIDE,             ///< 除法
-    EQUALS,             ///< 等号
-    PERCENT,            ///< 百分比
-    SQUARE_ROOT,        ///< 平方根
-    SQUARE,             ///< 平方
-    RECIPROCAL          ///< 倒数
-};
+// 使用 KeyboardConfig.h 中定义的枚举类型
+// 避免重复定义 KeyType 和 Operator
 
 /**
  * @brief 计算状态枚举
@@ -129,9 +103,10 @@ public:
     /**
      * @brief 处理按键输入
      * @param keyPosition 按键位置 (1-22)
+     * @param isLongPress 是否为长按
      * @return true 处理成功，false 处理失败
      */
-    bool handleKeyInput(uint8_t keyPosition);
+    bool handleKeyInput(uint8_t keyPosition, bool isLongPress = false);
     
     /**
      * @brief 设置显示管理器
@@ -264,10 +239,31 @@ private:
     void handleOperatorInput(Operator op);
     
     /**
-     * @brief 处理功能键输入
+     * @brief 处理功能键输入 (兼容旧版)
      * @param mapping 按键映射
      */
     void handleFunctionInput(const KeyMapping* mapping);
+    
+    /**
+     * @brief 处理功能键输入 (新版)
+     * @param keyConfig 按键配置
+     */
+    void handleFunctionInput(const KeyConfig* keyConfig);
+    
+    /**
+     * @brief 处理清除操作
+     */
+    void handleClear();
+    
+    /**
+     * @brief 处理退格删除操作
+     */
+    void handleBackspace();
+    
+    /**
+     * @brief 处理模式切换
+     */
+    void handleModeSwitch();
     
     /**
      * @brief 执行计算

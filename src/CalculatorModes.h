@@ -31,11 +31,7 @@
  */
 enum class ModeType {
     BASIC = 0,              ///< 基本计算模式
-    SCIENTIFIC,             ///< 科学计算模式
     FINANCIAL,              ///< 财务计算模式
-    PROGRAMMER,             ///< 程序员模式
-    STATISTICS,             ///< 统计模式
-    UNIT_CONVERTER,         ///< 单位转换模式
     CUSTOM                  ///< 自定义模式
 };
 
@@ -249,56 +245,6 @@ private:
     static ModeConfig createBasicConfig();
 };
 
-/**
- * @brief 科学计算模式
- */
-class ScientificMode : public CalculatorMode {
-public:
-    /**
-     * @brief 构造函数
-     */
-    ScientificMode();
-    
-    /**
-     * @brief 析构函数
-     */
-    ~ScientificMode() override = default;
-    
-    // 实现基类接口
-    bool initialize() override;
-    bool handleKeyInput(uint8_t keyPosition, bool isLongPress = false,
-                       bool isSecondFunction = false) override;
-    void updateDisplay() override;
-    String getHelpText() const override;
-
-private:
-    bool _angleInDegrees;               ///< 角度单位是否为度
-    bool _inverseMode;                  ///< 反三角函数模式
-    String _pendingFunction;            ///< 待执行的函数
-    
-    /**
-     * @brief 处理科学函数
-     * @param functionName 函数名
-     */
-    void handleScientificFunction(const String& functionName);
-    
-    /**
-     * @brief 切换角度单位
-     */
-    void toggleAngleMode();
-    
-    /**
-     * @brief 创建科学模式按键映射
-     * @return 按键映射向量
-     */
-    static std::vector<ModeKeyMapping> createScientificKeyMappings();
-    
-    /**
-     * @brief 创建科学模式配置
-     * @return 模式配置
-     */
-    static ModeConfig createScientificConfig();
-};
 
 /**
  * @brief 财务计算模式
@@ -383,66 +329,6 @@ private:
     static ModeConfig createFinancialConfig();
 };
 
-/**
- * @brief 程序员模式
- */
-class ProgrammerMode : public CalculatorMode {
-public:
-    /**
-     * @brief 构造函数
-     */
-    ProgrammerMode();
-    
-    /**
-     * @brief 析构函数
-     */
-    ~ProgrammerMode() override = default;
-    
-    // 实现基类接口
-    bool initialize() override;
-    bool handleKeyInput(uint8_t keyPosition, bool isLongPress = false,
-                       bool isSecondFunction = false) override;
-    void updateDisplay() override;
-    String getHelpText() const override;
-
-private:
-    enum NumberBase { BINARY = 2, OCTAL = 8, DECIMAL = 10, HEXADECIMAL = 16 };
-    
-    NumberBase _currentBase;            ///< 当前进制
-    int64_t _currentValue;              ///< 当前值（整数）
-    
-    /**
-     * @brief 切换进制
-     * @param base 目标进制
-     */
-    void switchBase(NumberBase base);
-    
-    /**
-     * @brief 转换数字到指定进制
-     * @param value 数值
-     * @param base 进制
-     * @return 转换后的字符串
-     */
-    String convertToBase(int64_t value, NumberBase base) const;
-    
-    /**
-     * @brief 执行位运算
-     * @param operation 运算类型
-     */
-    void performBitwiseOperation(const String& operation);
-    
-    /**
-     * @brief 创建程序员模式按键映射
-     * @return 按键映射向量
-     */
-    static std::vector<ModeKeyMapping> createProgrammerKeyMappings();
-    
-    /**
-     * @brief 创建程序员模式配置
-     * @return 模式配置
-     */
-    static ModeConfig createProgrammerConfig();
-};
 
 /**
  * @brief 模式管理器
