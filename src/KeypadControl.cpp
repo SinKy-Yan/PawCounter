@@ -96,9 +96,8 @@ void KeypadControl::begin() {
     digitalWrite(SCAN_CLK_PIN, LOW);
     KEYPAD_LOG_D("Initial pin states set");
 
-    // 初始化蜂鸣器PWM
-    ledcAttachChannel(BUZZ_PIN, 2000, 8, BUZZER_CHANNEL);  // 8位分辨率
-    KEYPAD_LOG_D("Buzzer PWM initialized (2kHz, 8-bit, channel %d)", BUZZER_CHANNEL);
+    // 蜂鸣器由 BuzzerSoundManager 统一管理，此处不再初始化
+    KEYPAD_LOG_D("Buzzer managed by BuzzerSoundManager");
     
     KEYPAD_LOG_I("Keypad control system initialized successfully");
 }
@@ -175,9 +174,9 @@ void KeypadControl::checkKeyStates(uint32_t buttonState) {
             } else {
                 handleKeyEvent(KEY_EVENT_RELEASE, i + 1);
             }
-        }
-        
-        if (isPressed) {
+        } else if (isPressed) {
+            // 只有在状态没有变化但仍处于按下状态时，才添加到当前按下键列表
+            // 这用于多键组合检测（避免重复添加）
             _pressedKeys[_pressedKeyCount++] = i + 1;
         }
     }
@@ -203,9 +202,9 @@ void KeypadControl::checkComboKeys() {
     if (_pressedKeyCount > 1 && _pressedKeyCount <= 5) {
         // 复制当前按下的键到组合键缓冲区
         memcpy(_comboBuffer, _pressedKeys, _pressedKeyCount);
-        // 触发组合键事件
+        // 触发组合键事件 - 使用第一个键作为主键
         if (_eventCallback) {
-            _eventCallback(KEY_EVENT_COMBO, _pressedKeyCount, _comboBuffer, _pressedKeyCount);
+            _eventCallback(KEY_EVENT_COMBO, _comboBuffer[0], _comboBuffer, _pressedKeyCount);
         }
     }
 }
@@ -316,20 +315,14 @@ uint8_t KeypadControl::getVolumeDuty(BuzzerVolume volume) const {
 }
 
 void KeypadControl::startBuzzer(uint16_t freq, uint16_t duration) {
-    if (!_buzzerConfig.enabled || _buzzerConfig.volume == BUZZER_MUTE) {
-        return;
-    }
-    _buzzerEndTime = millis() + duration;
-    _buzzerActive = true;
-    ledcAttach(BUZZ_PIN, freq, 8);
-    ledcWrite(BUZZ_PIN, getVolumeDuty(_buzzerConfig.volume));
+    // 蜂鸣器功能已移至 BuzzerSoundManager，此方法保留接口兼容性
+    KEYPAD_LOG_D("Buzzer call redirected to BuzzerSoundManager (freq=%d, duration=%d)", freq, duration);
+    // TODO: 可以通过 BuzzerSoundManager 实现实际的蜂鸣器控制
 }
 
 void KeypadControl::updateBuzzer() {
-    if (_buzzerActive && millis() >= _buzzerEndTime) {
-        ledcWrite(BUZZ_PIN, 0);
-        _buzzerActive = false;
-    }
+    // 蜂鸣器更新由 BuzzerSoundManager 处理，此方法保留接口兼容性
+    // 不再执行任何硬件操作
 }
 
 void KeypadControl::handleLEDEffect(uint8_t ledIndex, LEDMode mode, CRGB color) {

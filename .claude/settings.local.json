@@ -5,7 +5,9 @@
       "Bash(pio run:*)",
       "Bash(grep:*)",
       "Bash(mv:*)",
-      "Bash(/mnt/c/.platformio/penv/Scripts/pio.exe run --target upload)"
+      "Bash(/mnt/c/.platformio/penv/Scripts/pio.exe run --target upload)",
+      "Bash(rg:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

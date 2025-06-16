@@ -27,6 +27,11 @@
 #include "CalculationEngine.h"
 #include "CalculatorModes.h"
 
+// 反馈系统头文件
+#include "FeedbackManager.h"
+#include "LEDEffectManager.h"
+#include "BuzzerSoundManager.h"
+
 // 全局对象
 std::shared_ptr<CalculatorCore> calculator;
 std::shared_ptr<CalculatorDisplay> display;
@@ -49,12 +54,20 @@ void testKeyMapping();
  * @brief 按键事件回调函数
  */
 void onKeyEvent(KeyEventType type, uint8_t key, uint8_t* combo, uint8_t count) {
-    // 只处理按下事件
+    LOG_I(TAG_MAIN, "Key event: type=%d, key=%d", type, key);
+    
+    // 触发按键反馈（根据事件类型）
+    bool isLongPress = (type == KEY_EVENT_LONGPRESS);
+    if (type == KEY_EVENT_PRESS) {
+        FEEDBACK_MGR.triggerKeyFeedback(key, true, isLongPress);
+    } else if (type == KEY_EVENT_RELEASE) {
+        FEEDBACK_MGR.triggerKeyFeedback(key, false, false);
+    }
+    
+    // 只处理按下事件进行功能处理
     if (type != KEY_EVENT_PRESS) {
         return;
     }
-    
-    LOG_I(TAG_MAIN, "Key pressed: %d", key);
     
     // 如果在按键映射测试模式，显示详细信息
     if (keyMappingTestMode) {
@@ -64,7 +77,12 @@ void onKeyEvent(KeyEventType type, uint8_t key, uint8_t* combo, uint8_t count) {
     
     // 传递给计算器核心处理
     if (calculator) {
-        calculator->handleKeyInput(key);
+        bool success = calculator->handleKeyInput(key);
+        
+        // 根据处理结果触发反馈
+        if (!success) {
+            FEEDBACK_ERROR();
+        }
     }
 }
 
@@ -208,6 +226,18 @@ void handleSerialCommands() {
             LOG_I(TAG_MAIN, "status/s   - 显示状态");
             LOG_I(TAG_MAIN, "keymap     - 按键映射测试");
             LOG_I(TAG_MAIN, "layout     - 显示按键布局");
+            LOG_I(TAG_MAIN, "");
+            LOG_I(TAG_MAIN, "=== 反馈系统命令 ===");
+            LOG_I(TAG_MAIN, "feedback   - 反馈系统状态");
+            LOG_I(TAG_MAIN, "silent     - 切换静音模式");
+            LOG_I(TAG_MAIN, "volume [0-100] - 设置音量");
+            LOG_I(TAG_MAIN, "bright [0-255] - 设置亮度");
+            LOG_I(TAG_MAIN, "testled    - 测试LED效果");
+            LOG_I(TAG_MAIN, "ledtest    - LED连接测试");
+            LOG_I(TAG_MAIN, "testsound  - 测试音效");
+            LOG_I(TAG_MAIN, "startup    - 测试启动效果（灯光+声音）");
+            LOG_I(TAG_MAIN, "fasttest   - 快速按键响应测试");
+            LOG_I(TAG_MAIN, "longtest   - 长按效果测试");
             
         } else if (command == "mode" || command == "m") {
             currentModeId = (currentModeId + 1) % 3;
@@ -278,6 +308,93 @@ void handleSerialCommands() {
             LOG_I(TAG_MAIN, "显示: %s", calculator->getCurrentDisplay().c_str());
             LOG_I(TAG_MAIN, "历史记录: %d 条", calculator->getHistory().size());
             
+        } else if (command == "feedback") {
+            LOG_I(TAG_MAIN, "=== 反馈系统状态 ===");
+            const auto& stats = FEEDBACK_MGR.getStats();
+            const auto& prefs = FEEDBACK_MGR.getUserPreferences();
+            LOG_I(TAG_MAIN, "反馈模式: %d", prefs.mode);
+            LOG_I(TAG_MAIN, "总反馈次数: %lu", stats.totalFeedbacks);
+            LOG_I(TAG_MAIN, "LED激活次数: %lu", stats.ledActivations);
+            LOG_I(TAG_MAIN, "音效激活次数: %lu", stats.soundActivations);
+            LOG_I(TAG_MAIN, "全局音量: %d", prefs.globalVolume);
+            LOG_I(TAG_MAIN, "全局亮度: %d", prefs.globalBrightness);
+            LOG_I(TAG_MAIN, "按键音: %s", prefs.keyClickSound ? "开启" : "关闭");
+            LOG_I(TAG_MAIN, "系统音: %s", prefs.systemSounds ? "开启" : "关闭");
+            LOG_I(TAG_MAIN, "视觉效果: %s", prefs.visualEffects ? "开启" : "关闭");
+            
+        } else if (command == "silent") {
+            static bool silentMode = false;
+            silentMode = !silentMode;
+            FEEDBACK_MGR.setFeedbackMode(silentMode ? MODE_SILENT : MODE_FULL);
+            LOG_I(TAG_MAIN, "静音模式: %s", silentMode ? "开启" : "关闭");
+            
+        } else if (command.startsWith("volume ")) {
+            int volume = command.substring(7).toInt();
+            if (volume >= 0 && volume <= 100) {
+                BUZZER_MGR.setGlobalVolume(volume);
+                LOG_I(TAG_MAIN, "音量设置为: %d", volume);
+            } else {
+                LOG_W(TAG_MAIN, "音量范围: 0-100");
+            }
+            
+        } else if (command.startsWith("bright ")) {
+            int brightness = command.substring(7).toInt();
+            if (brightness >= 0 && brightness <= 255) {
+                LED_MGR.setGlobalBrightness(brightness);
+                LOG_I(TAG_MAIN, "亮度设置为: %d", brightness);
+            } else {
+                LOG_W(TAG_MAIN, "亮度范围: 0-255");
+            }
+            
+        } else if (command == "testled") {
+            LOG_I(TAG_MAIN, "测试LED效果...");
+            LED_MGR.startupEffect();
+            
+        } else if (command == "ledtest") {
+            LOG_I(TAG_MAIN, "=== LED连接测试 ===");
+            // 逐个点亮每个LED来测试连接
+            for (uint8_t i = 0; i < NUM_LEDS; i++) {
+                leds[i] = CRGB::Red;
+                FastLED.show();
+                LOG_I(TAG_MAIN, "点亮LED %d (红色)", i);
+                delay(200);
+                leds[i] = CRGB::Black;
+                FastLED.show();
+                delay(100);
+            }
+            LOG_I(TAG_MAIN, "LED连接测试完成");
+            
+        } else if (command == "testsound") {
+            LOG_I(TAG_MAIN, "测试音效...");
+            BUZZER_MGR.startupSound();
+            
+        } else if (command == "startup") {
+            LOG_I(TAG_MAIN, "=== 测试启动效果 ===");
+            LED_MGR.startupEffect();
+            BUZZER_MGR.startupSound();
+            LOG_I(TAG_MAIN, "启动效果已触发");
+            
+        } else if (command == "fasttest") {
+            LOG_I(TAG_MAIN, "=== 快速按键响应测试 ===");
+            for (int i = 0; i < 5; i++) {
+                // 模拟快速按键：按下->释放
+                FEEDBACK_MGR.triggerKeyFeedback(4, true);   // 按下
+                delay(50);  // 50ms后释放
+                FEEDBACK_MGR.triggerKeyFeedback(4, false);  // 释放
+                delay(100); // 100ms间隔
+                LOG_I(TAG_MAIN, "快速按键测试 %d/5", i+1);
+            }
+            LOG_I(TAG_MAIN, "快速按键测试完成");
+            
+        } else if (command == "longtest") {
+            LOG_I(TAG_MAIN, "=== 长按效果测试 ===");
+            FEEDBACK_MGR.triggerKeyFeedback(4, true);        // 按下
+            delay(100);
+            FEEDBACK_MGR.triggerKeyFeedback(4, true, true);  // 长按
+            delay(2000);  // 等待2秒观察效果
+            FEEDBACK_MGR.triggerKeyFeedback(4, false);       // 释放
+            LOG_I(TAG_MAIN, "长按测试完成");
+            
         } else if (command.length() > 0) {
             LOG_W(TAG_MAIN, "未知命令: %s (输入 help 查看帮助)", command.c_str());
         }
@@ -307,10 +424,17 @@ void setup() {
     // 初始化硬件
     LOG_I(TAG_MAIN, "初始化硬件系统...");
     initDisplay();
+    initLEDs();
     
     // 初始化背光控制
     BacklightControl::getInstance().begin();
     BacklightControl::getInstance().setBacklight(50);
+    
+    // 初始化反馈系统
+    LOG_I(TAG_MAIN, "初始化反馈系统...");
+    if (!FEEDBACK_MGR.begin()) {
+        LOG_E(TAG_MAIN, "反馈系统初始化失败");
+    }
     
     // 初始化键盘
     keypad.begin();
@@ -358,6 +482,10 @@ void setup() {
     LOG_I(TAG_MAIN, "可用模式: 基本, 财务");
     LOG_I(TAG_MAIN, "串口命令: help, mode, test, financial, clear, status");
     LOG_I(TAG_MAIN, "按键输入已启用");
+    
+    // 在所有初始化完成后播放启动动画
+    LOG_I(TAG_MAIN, "播放启动动画...");
+    FEEDBACK_MGR.triggerSystemFeedback(SCENE_SYSTEM_STARTUP);
 }
 
 /**
@@ -367,6 +495,9 @@ void loop() {
     // 更新硬件系统
     keypad.update();
     BacklightControl::getInstance().update();
+    
+    // 更新反馈系统
+    FEEDBACK_MGR.update();
     
     // 更新计算器系统
     if (calculator) {

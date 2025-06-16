@@ -90,17 +90,16 @@ void playMarioStartup() {
 void playStartupAnimation() {
     FastLED.clear();
 
-    for (int wave = 0; wave < 9; wave++) {
-        for (int i = 0; i < 5; i++) {
-            for (int j = 0; j < 5; j++) {
-                if (KEY_MATRIX[i][j] != -1) {
-                    leds[KEY_MATRIX[i][j]] = CRGB::Blue;
-                    FastLED.show();
-                    delay(20);
-                    leds[KEY_MATRIX[i][j]] = CRGB::Black;
-                }
-            }
-        }
+    // 所有灯白色闪烁一次，然后全灭
+    // 全部亮起白色
+    for (int i = 0; i < NUM_LEDS; i++) {
+        leds[i] = CRGB::White;
     }
     FastLED.show();
+    delay(500);  // 亮起0.5秒
+
+    // 全部熄灭
+    FastLED.clear();
+    FastLED.show();
+    delay(500);  // 熄灭0.5秒
 }
