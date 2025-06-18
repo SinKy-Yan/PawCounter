@@ -73,7 +73,7 @@ void setup() {
     // 4. 初始化背光控制
     Serial.println("4. 初始化背光控制...");
     BacklightControl::getInstance().begin();
-    BacklightControl::getInstance().setBacklight(50, 1000); // 50%亮度，1秒渐变
+    BacklightControl::getInstance().setBacklight(100, 2000); // 100%亮度，2秒渐变
     LOG_I(TAG_MAIN, "背光控制初始化完成");
     
     // 5. 初始化反馈系统（LED效果 + 蜂鸣器）
@@ -141,18 +141,32 @@ void setup() {
     }
     LOG_I(TAG_MAIN, "计算器核心初始化完成");
     
-    // 11. 显示启动信息
+    // 11. 显示启动信息（应用180度旋转）
     if (gfx) {
         gfx->fillScreen(0x0000); // 黑色背景
         gfx->setTextColor(0x07E0); // 绿色文字
-        gfx->setTextSize(2);
-        gfx->setCursor(10, 40);
+        gfx->setTextSize(3);       // 标题字体
+        
+        // 计算180度翻转后的坐标
+        // 原始坐标(10, 30) -> 翻转后坐标
+        uint16_t titleX = DISPLAY_WIDTH - 10 - 200; // 减去标题宽度估计
+        uint16_t titleY = DISPLAY_HEIGHT - 30 - 24;  // 减去字体高度
+        gfx->setCursor(titleX, titleY);
         gfx->print("Calculator Ready");
+        
         gfx->setTextColor(0xFFFF); // 白色文字
-        gfx->setTextSize(1);
-        gfx->setCursor(10, 70);
+        gfx->setTextSize(2);       // 版本信息字体
+        
+        // 版本信息翻转坐标
+        uint16_t versionX = DISPLAY_WIDTH - 10 - 250;
+        uint16_t versionY = DISPLAY_HEIGHT - 70 - 16;
+        gfx->setCursor(versionX, versionY);
         gfx->print("ESP32-S3 Calculator v2.0");
-        gfx->setCursor(10, 90);
+        
+        // 提示信息翻转坐标
+        uint16_t promptX = DISPLAY_WIDTH - 10 - 200;
+        uint16_t promptY = DISPLAY_HEIGHT - 100 - 16;
+        gfx->setCursor(promptX, promptY);
         gfx->print("Press any key to start");
     }
     
@@ -192,7 +206,7 @@ void initDisplay() {
     bus = new Arduino_HWSPI(LCD_DC, LCD_CS, LCD_SCK, LCD_MOSI);
     
     Serial.println("  - 初始化显示驱动...");
-    gfx = new Arduino_NV3041A(bus, LCD_RST, 0, false, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0, 0, 0);
+    gfx = new Arduino_NV3041A(bus, LCD_RST, 0, true, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0, 0, 0);
     
     Serial.println("  - 启动显示硬件...");
     if (!gfx->begin()) {
@@ -204,9 +218,12 @@ void initDisplay() {
     // 延迟确保初始化完成
     delay(100);
     
-    // 开启背光
-    digitalWrite(LCD_BL, HIGH);
-    Serial.println("  - 背光已开启");
+    // 设置显示旋转（硬件限制：只有0和1有效，需要180度只能用软件实现）
+    gfx->setRotation(0);  // 使用0度，然后在软件层面实现180度翻转
+    Serial.println("  - 显示旋转设置为0度（将通过软件实现180度翻转）");
+    
+    // 背光保持关闭，等待后续软件控制
+    Serial.println("  - 背光硬件准备完成，等待软件控制");
     
     // 清屏
     gfx->fillScreen(0x0000); // 黑色
@@ -286,6 +303,7 @@ void handleSerialCommands() {
             Serial.println("== 调试功能 ==");
             Serial.println("layout         - 显示按键布局");
             Serial.println("keymap         - 按键映射测试");
+            Serial.println("rotate [0-1]   - 设置显示旋转角度(0=0度,1=90度)");
             Serial.println("log [level]    - 设置日志级别 (e/w/i/d/v)");
             Serial.println();
             Serial.println("== 配置状态 ==");
@@ -379,6 +397,31 @@ void handleSerialCommands() {
             if (calculator) {
                 // 切换按键映射测试模式
                 Serial.println("按键映射测试模式已切换");
+            }
+        }
+        else if (command.startsWith("rotate ")) {
+            int rotation = command.substring(7).toInt();
+            if (rotation >= 0 && rotation <= 1) {
+                if (gfx) {
+                    gfx->setRotation(rotation);
+                    gfx->fillScreen(0x0000);
+                    gfx->setTextColor(0x07E0);
+                    gfx->setTextSize(3);
+                    // 应用180度翻转坐标显示旋转测试文本
+                    uint16_t testX = DISPLAY_WIDTH - 10 - 120;
+                    uint16_t testY = DISPLAY_HEIGHT - 50 - 24;
+                    gfx->setCursor(testX, testY);
+                    gfx->printf("Rotation: %d", rotation);
+                    
+                    uint16_t descX = DISPLAY_WIDTH - 10 - 100;
+                    uint16_t descY = DISPLAY_HEIGHT - 80 - 24;
+                    gfx->setCursor(descX, descY);
+                    gfx->print(rotation == 0 ? "(0 degree)" : "(90 degree)");
+                    Serial.printf("显示旋转设置为: %d (%s)\n", rotation, 
+                                rotation == 0 ? "0度" : "90度");
+                }
+            } else {
+                Serial.println("旋转角度范围: 0-1 (0=0度, 1=90度) - 此LCD只支持这两个角度");
             }
         }
 #ifdef ENABLE_BATTERY_MANAGER

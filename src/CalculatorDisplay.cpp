@@ -51,27 +51,46 @@ void LCDDisplay::updateDisplay(const String& number,
     
     if (!_gfx) return;
     
-    // 最简化显示 - 只清屏并显示一个简单数字
+    // 清屏
     _gfx->fillScreen(_theme.backgroundColor);
     
-    // 只显示基本文字，避免复杂布局
-    _gfx->setTextColor(_theme.textColor);
-    _gfx->setTextSize(1);
-    _gfx->setCursor(10, 20);
-    _gfx->print("Calc: ");
-    _gfx->print(number);
+    // 使用软件180度翻转显示主数字
+    uint16_t x, y;
+    flipCoordinates180(10, 20, x, y);  // 翻转起始坐标
     
-    DISPLAY_LOG_V("LCD display updated (minimal)");
+    _gfx->setTextColor(_theme.resultColor);
+    _gfx->setTextSize(_theme.mainFontSize);
+    _gfx->setCursor(x, y);
+    
+    // 格式化并显示数字
+    String formattedNumber = formatDisplayNumber(number);
+    _gfx->print(formattedNumber);
+    
+    // 如果有表达式，也需要翻转显示
+    if (!expression.isEmpty()) {
+        uint16_t exprX, exprY;
+        flipCoordinates180(10, 60, exprX, exprY);
+        _gfx->setTextColor(_theme.expressionColor);
+        _gfx->setTextSize(_theme.expressionFontSize);
+        _gfx->setCursor(exprX, exprY);
+        _gfx->print(expression);
+    }
+    
+    DISPLAY_LOG_V("LCD display updated with 180° rotation");
 }
 
 void LCDDisplay::showError(CalculatorError error, const String& message) {
     if (!_gfx) return;
     
+    // 应用180度坐标翻转
+    uint16_t flippedX, flippedY;
+    flipCoordinates180(10, _displayHeight/2, flippedX, flippedY);
+    
     _gfx->setTextColor(_theme.errorColor);
     _gfx->setTextSize(2);
-    _gfx->setCursor(10, _displayHeight/2);
+    _gfx->setCursor(flippedX, flippedY);
     _gfx->print("ERROR: ");
-    _gfx->println(message);
+    _gfx->print(message);
     
     DISPLAY_LOG_W("Error displayed: %s", message.c_str());
 }
@@ -106,6 +125,10 @@ void LCDDisplay::drawMainNumber(const String& number, uint16_t x, uint16_t y,
                                uint16_t width, uint16_t height) {
     if (!_gfx) return;
     
+    // 应用180度坐标翻转
+    uint16_t flippedX, flippedY;
+    flipCoordinates180(x + 10, y + height/2, flippedX, flippedY);
+    
     // 设置大字体显示主数字
     _gfx->setTextColor(_theme.resultColor);
     _gfx->setTextSize(_theme.mainFontSize);
@@ -113,8 +136,8 @@ void LCDDisplay::drawMainNumber(const String& number, uint16_t x, uint16_t y,
     // 格式化数字
     String formattedNumber = formatDisplayNumber(number);
     
-    // 简化定位 - 居中显示
-    _gfx->setCursor(x + 10, y + height/2);
+    // 使用翻转后的坐标
+    _gfx->setCursor(flippedX, flippedY);
     _gfx->print(formattedNumber);
 }
 
@@ -220,8 +243,8 @@ DisplayTheme LCDDisplay::getDefaultTheme() {
     theme.errorColor = 0xF800;         // 红色
     theme.statusColor = 0x001F;        // 蓝色
     theme.borderColor = 0x7BEF;        // 浅灰色
-    theme.mainFontSize = 2;
-    theme.expressionFontSize = 1;
+    theme.mainFontSize = 4;      // 主数字字体从2改为4，更大更清晰
+    theme.expressionFontSize = 2; // 表达式字体从1改为2
     theme.statusFontSize = 1;
     theme.padding = 5;
     theme.lineSpacing = 2;
@@ -240,6 +263,17 @@ NumberFormat LCDDisplay::getDefaultNumberFormat() {
     format.thousandsSeparator = ",";
     format.decimalSeparator = ".";
     return format;
+}
+
+void LCDDisplay::flipCoordinates180(uint16_t x, uint16_t y, uint16_t& flippedX, uint16_t& flippedY) {
+    // 180度翻转：(x,y) -> (width-x, height-y)
+    // 需要考虑文字的实际显示位置调整
+    flippedX = _displayWidth - x - 50;  // 减去文字预估宽度
+    flippedY = _displayHeight - y - 20;  // 减去文字高度
+    
+    // 确保坐标不会变成负数
+    if (flippedX > _displayWidth) flippedX = 10;
+    if (flippedY > _displayHeight) flippedY = 10;
 }
 
 // ============================================================================

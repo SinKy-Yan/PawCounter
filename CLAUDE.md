@@ -353,7 +353,208 @@ layout         - 显示按键布局图
 - `keymap` - 按键映射测试
 - `log [level]` - 设置日志级别（e/w/i/d/v）
 
+## 前后端分离架构设计
+
+### 设计理念
+
+项目采用现代化的前后端分离架构，确保将来可以无缝从Arduino_GFX切换到LVGL或其他UI框架，同时保持后端逻辑完全不变。
+
+### 核心性能优化工作流
+
+系统设计围绕用户交互的关键路径进行优化：
+
+```
+用户按键输入 → 程序计算 → 人机交互反馈 → 刷屏显示
+```
+
+**性能要求:**
+- 按键响应延迟: < 10ms
+- 计算处理延迟: < 20ms  
+- 反馈触发延迟: < 5ms
+- 显示刷新延迟: < 16ms (60FPS)
+
+**优先级设计:**
+1. **最高优先级**: 按键输入、计算处理、LED/蜂鸣器反馈、显示更新
+2. **中等优先级**: 状态监控、性能统计、菜单导航
+3. **低优先级**: 串口日志、系统诊断、设置保存、历史记录
+
+### 架构层次
+
+#### 1. 后端数据层 (`backend/`)
+- **DataTypes.h**: 所有数据结构定义，前后端共享
+- **ICalculatorBackend.h**: 后端抽象接口，定义所有业务逻辑
+- **CalculatorBackendImpl.h**: 后端具体实现，整合硬件模块
+
+#### 2. 前端显示层 (`frontend/`)
+- **IDisplayInterface.h**: 显示抽象接口，支持多UI框架
+- **ArduinoGFXAdapter.h**: Arduino_GFX适配器实现
+- **LVGLAdapter.h**: LVGL适配器（将来实现）
+
+#### 3. 桥接层
+- **CalculatorBridge.h**: 前后端桥接器，处理数据流和事件
+
+#### 4. 硬件抽象层
+- **hardware_config.h**: 硬件IO配置，引脚定义
+- **software_config.h**: 软件功能配置，开关和参数
+
+### 双核任务分离
+
+#### 核心0 (实时控制核心)
+```cpp
+优先级: 高性能实时任务
+任务列表:
+- 按键扫描和去抖 (5ms周期)
+- 计算逻辑处理 (事件驱动)
+- LED效果管理 (20ms周期)
+- 显示刷新控制 (16ms周期)
+- 背光PWM控制 (连续)
+- 蜂鸣器反馈 (事件驱动)
+```
+
+#### 核心1 (后台服务核心)
+```cpp
+优先级: 低延迟后台任务
+任务列表:
+- 串口通信处理 (事件驱动)
+- 日志系统输出 (队列处理)
+- 电池状态监控 (5秒周期)
+- 系统统计更新 (1秒周期)
+- 设置保存处理 (事件驱动)
+- 网络通信(未来) (事件驱动)
+```
+
+### 关键优化策略
+
+#### 1. 零拷贝数据传递
+```cpp
+// 使用引用传递，避免数据拷贝
+void updateDisplay(const DisplayContent& content);
+bool processKeyInput(const KeyEvent& keyEvent);
+```
+
+#### 2. 事件驱动架构
+```cpp
+// 按键事件立即处理，避免轮询延迟
+keypad.setKeyEventCallback(onKeyEvent);
+```
+
+#### 3. 异步日志系统
+```cpp
+// 日志通过队列异步发送到核心1，不阻塞核心0
+CORE_LOG_I(TAG_MAIN, "计算完成: %s", result.c_str());
+```
+
+#### 4. 缓存和预计算
+```cpp
+// 显示内容缓存，只在变化时更新
+if (needDisplayUpdate(newContent)) {
+    display->updateMainDisplay(newContent);
+}
+```
+
+### 模块化组件设计
+
+#### 后端核心组件
+```
+ICalculatorBackend (抽象接口)
+├── 计算功能: inputDigit(), calculate(), clear()
+├── 状态管理: getState(), switchMode()
+├── 历史记录: getHistory(), addToHistory()
+├── 内存操作: memoryStore(), memoryRecall()
+├── 设置管理: getSettings(), saveSettings()
+└── 回调注册: registerDisplayUpdateCallback()
+```
+
+#### 前端显示组件
+```
+IDisplayInterface (抽象接口)
+├── 基础显示: clear(), drawText(), refresh()
+├── 计算器UI: updateMainDisplay(), showError()
+├── 菜单系统: showMenu(), showSettings()
+├── 动画效果: playAnimation(), setTheme()
+└── 通知系统: showNotification(), showDialog()
+```
+
+### 扩展性设计
+
+#### 支持的UI框架切换
+```cpp
+// 当前实现: Arduino_GFX
+auto display = std::make_shared<ArduinoGFXAdapter>(gfx);
+
+// 未来切换到LVGL (只需要改这一行)
+auto display = std::make_shared<LVGLAdapter>(screen);
+
+// 桥接器和后端无需任何修改
+auto bridge = std::make_shared<CalculatorBridge>(backend, display);
+```
+
+#### 功能模块化开关
+```cpp
+// software_config.h 中的开关
+#define ENABLE_SCIENTIFIC_MODE    // 科学计算模式
+#define ENABLE_FINANCIAL_MODE     // 财务计算模式
+#define ENABLE_DUAL_CORE         // 双核架构
+#define ENABLE_LVGL_UI           // LVGL界面（未来）
+```
+
+### 调试和配置系统
+
+#### 分层配置管理
+- **硬件层**: `hardware_config.h` - 引脚、时序、电气参数
+- **软件层**: `software_config.h` - 功能开关、界面配置、性能参数
+- **用户层**: `UserSettings` - 运行时可调整的用户偏好
+
+#### 丰富的调试开关
+```cpp
+// 功能模块开关
+#define ENABLE_BATTERY_MANAGER    // 电池管理
+#define ENABLE_DUAL_CORE         // 双核架构
+#define ENABLE_SERIAL_LOGGING    // 串口日志
+
+// 调试级别控制
+#define DEBUG_LEVEL_VERBOSE      // 详细调试信息
+// #define DEBUG_LEVEL_MINIMAL   // 最小调试信息
+
+// 性能监控开关
+#define ENABLE_PERFORMANCE_MONITOR  // 性能监控
+#define ENABLE_MEMORY_MONITOR       // 内存监控
+```
+
 ## 最近修复和改进
+
+### 2024-01-07 前后端分离架构和双核性能优化
+
+#### 完成的工作
+
+1. **完整的前后端分离架构**:
+   - 创建抽象的后端接口 `ICalculatorBackend`
+   - 创建抽象的前端接口 `IDisplayInterface`
+   - 实现Arduino_GFX适配器 `ArduinoGFXAdapter`
+   - 设计桥接器 `CalculatorBridge` 连接前后端
+
+2. **性能优化的工作流设计**:
+   - 优化关键路径: 按键→计算→反馈→显示 < 50ms
+   - 双核任务分离: 核心0实时控制，核心1后台服务
+   - 异步日志系统: 避免串口输出阻塞主要功能
+   - 事件驱动架构: 减少不必要的轮询延迟
+
+3. **模块化配置系统**:
+   - 分离硬件配置(`hardware_config.h`)和软件配置(`software_config.h`)
+   - 丰富的调试开关和性能监控选项
+   - 支持运行时功能启用/禁用
+
+4. **可扩展的UI框架支持**:
+   - 抽象显示接口支持Arduino_GFX、LVGL等多种UI框架
+   - 后端逻辑与UI框架完全解耦
+   - 串口日志系统可与多种UI后端配合使用
+
+#### 架构优势
+- **性能优先**: 关键交互路径延迟最小化
+- **高度模块化**: 前后端完全分离，便于维护和扩展
+- **UI框架无关**: 支持从Arduino_GFX无缝切换到LVGL
+- **双核充分利用**: 实时任务和后台任务分离
+- **丰富的调试功能**: 多层次的配置和监控系统
 
 ### 2024-01-07 初始化系统整合和电池管理优化
 
