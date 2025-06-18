@@ -8,6 +8,7 @@
 #include <FastLED.h> 
 
 #define DEBUG_MODE
+// #define ENABLE_BATTERY_MANAGER  // 注释此行可禁用电池管理（调试模式）
 
 // LCD 引脚定义 IM0~2:110
 // #define LCD_RST  48  // Reset
