@@ -51,31 +51,17 @@ void LCDDisplay::updateDisplay(const String& number,
     
     if (!_gfx) return;
     
-    // 清除屏幕
-    clear();
+    // 最简化显示 - 只清屏并显示一个简单数字
+    _gfx->fillScreen(_theme.backgroundColor);
     
-    // 计算布局
-    uint16_t mainHeight = _displayHeight * 0.5;     // 主显示区域占50%
-    uint16_t exprHeight = _displayHeight * 0.25;    // 表达式区域占25%
-    uint16_t statusHeight = _displayHeight * 0.25;  // 状态区域占25%
+    // 只显示基本文字，避免复杂布局
+    _gfx->setTextColor(_theme.textColor);
+    _gfx->setTextSize(1);
+    _gfx->setCursor(10, 20);
+    _gfx->print("Calc: ");
+    _gfx->print(number);
     
-    // 绘制表达式区域
-    if (!expression.isEmpty()) {
-        drawExpression(expression, 0, 0, _displayWidth, exprHeight);
-    }
-    
-    // 绘制主数字区域
-    drawMainNumber(number, 0, exprHeight, _displayWidth, mainHeight);
-    
-    // 绘制状态栏
-    drawStatusBar(state, 0, exprHeight + mainHeight, _displayWidth, statusHeight);
-    
-    // 绘制单位标识（如果启用）
-    if (_unitDisplay.enabled) {
-        drawUnitLabels(number, _displayWidth - 100, exprHeight + 10);
-    }
-    
-    DISPLAY_LOG_V("LCD display updated");
+    DISPLAY_LOG_V("LCD display updated (minimal)");
 }
 
 void LCDDisplay::showError(CalculatorError error, const String& message) {
@@ -127,12 +113,8 @@ void LCDDisplay::drawMainNumber(const String& number, uint16_t x, uint16_t y,
     // 格式化数字
     String formattedNumber = formatDisplayNumber(number);
     
-    // 右对齐显示
-    int16_t textWidth = formattedNumber.length() * (_theme.mainFontSize * 6);
-    int16_t startX = x + width - textWidth - 10;
-    if (startX < x) startX = x + 5;
-    
-    _gfx->setCursor(startX, y + height/2);
+    // 简化定位 - 居中显示
+    _gfx->setCursor(x + 10, y + height/2);
     _gfx->print(formattedNumber);
 }
 
@@ -238,8 +220,8 @@ DisplayTheme LCDDisplay::getDefaultTheme() {
     theme.errorColor = 0xF800;         // 红色
     theme.statusColor = 0x001F;        // 蓝色
     theme.borderColor = 0x7BEF;        // 浅灰色
-    theme.mainFontSize = 3;
-    theme.expressionFontSize = 2;
+    theme.mainFontSize = 2;
+    theme.expressionFontSize = 1;
     theme.statusFontSize = 1;
     theme.padding = 5;
     theme.lineSpacing = 2;

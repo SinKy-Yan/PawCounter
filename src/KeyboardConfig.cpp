@@ -415,25 +415,77 @@ uint32_t KeyboardConfigManager::calculateChecksum() const {
 }
 
 size_t KeyboardConfigManager::serializeConfig(uint8_t* buffer, size_t maxSize) const {
-    // 简化的序列化实现（实际项目中可能需要更复杂的协议）
-    if (maxSize < sizeof(KeyboardLayoutConfig)) {
+    // 简化的序列化实现 - 避免直接复制含有std::vector的结构体
+    if (maxSize < 64) {  // 最小缓冲区大小
         return 0;
     }
     
-    // 这里应该实现具体的序列化逻辑
-    // 为了简化，我们暂时只保存关键信息
-    memcpy(buffer, &_layoutConfig, sizeof(_layoutConfig));
-    return sizeof(_layoutConfig);
+    // 只序列化基本信息，避免std::vector的问题
+    size_t offset = 0;
+    
+    // 写入版本信息长度和内容
+    uint8_t versionLen = _layoutConfig.version.length();
+    buffer[offset++] = versionLen;
+    memcpy(buffer + offset, _layoutConfig.version.c_str(), versionLen);
+    offset += versionLen;
+    
+    // 写入其他基本信息
+    buffer[offset++] = (uint8_t)_layoutConfig.defaultLayer;
+    buffer[offset++] = _layoutConfig.tabKeyPosition;
+    
+    // 写入简单的配置标识
+    uint32_t configId = 0x12345678;  // 简单的配置标识
+    memcpy(buffer + offset, &configId, sizeof(configId));
+    offset += sizeof(configId);
+    
+    return offset;
 }
 
 bool KeyboardConfigManager::deserializeConfig(const uint8_t* buffer, size_t size) {
-    // 简化的反序列化实现
-    if (size < sizeof(KeyboardLayoutConfig)) {
+    // 简化的反序列化实现 - 避免直接复制含有std::vector的结构体
+    if (size < 8) {  // 最小数据大小
         return false;
     }
     
-    // 这里应该实现具体的反序列化逻辑
-    memcpy(&_layoutConfig, buffer, sizeof(_layoutConfig));
+    size_t offset = 0;
+    
+    // 读取版本信息
+    uint8_t versionLen = buffer[offset++];
+    if (offset + versionLen > size) {
+        return false;
+    }
+    
+    String version;
+    version.reserve(versionLen);
+    for (int i = 0; i < versionLen; i++) {
+        version += (char)buffer[offset++];
+    }
+    
+    // 读取其他基本信息
+    if (offset + 2 + sizeof(uint32_t) > size) {
+        return false;
+    }
+    
+    KeyLayer defaultLayer = (KeyLayer)buffer[offset++];
+    uint8_t tabKeyPosition = buffer[offset++];
+    
+    // 读取配置标识
+    uint32_t configId;
+    memcpy(&configId, buffer + offset, sizeof(configId));
+    offset += sizeof(configId);
+    
+    // 验证配置标识
+    if (configId != 0x12345678) {
+        KEYBOARD_LOG_W("Invalid config ID: 0x%08X", configId);
+        return false;
+    }
+    
+    // 由于我们无法安全地反序列化std::vector，使用默认配置
+    _layoutConfig = createDefaultConfig();
+    _layoutConfig.version = version;
+    _layoutConfig.defaultLayer = defaultLayer;
+    _layoutConfig.tabKeyPosition = tabKeyPosition;
+    
     return true;
 }
 

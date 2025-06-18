@@ -9,16 +9,24 @@
 
 #define DEBUG_MODE
 
-// LCD 引脚定义
-#define LCD_RST  48  // Reset
-#define LCD_CS   45  // Chip Select
-#define LCD_SCK  39  // Clock
-#define LCD_BL   42  // Backlight
+// LCD 引脚定义 IM0~2:110
+// #define LCD_RST  48  // Reset
+// #define LCD_CS   45  // Chip Select
+// #define LCD_SCK  39  // Clock
+// #define LCD_BL   42  // Backlight
 
-#define LCD_A3   21  // Address
-#define LCD_A2   47  // Data
-#define LCD_A1   38  // Address
-#define LCD_A0   41  // Data
+// #define LCD_A3   21  // Address
+// #define LCD_A2   47  // Data
+// #define LCD_A1   38  // Address
+// #define LCD_A0   41  // Data
+
+// 重定义清晰的引脚名
+#define LCD_RST   48
+#define LCD_CS    45
+#define LCD_DC    38
+#define LCD_SCK   39
+#define LCD_BL    42
+#define LCD_MOSI  41
 
 // 显示屏参数
 #define DISPLAY_WIDTH 480

@@ -54,9 +54,9 @@ bool BuzzerSoundManager::begin() {
     _globalVolume = 50;
     _queueSize = 0;
 
-    // 初始化LEDC通道用于蜂鸣器控制
-    ledcAttachChannel(BUZZ_PIN, 2000, 8, BUZZER_CHANNEL);  // 使用配置中定义的通道
-    LOG_D(TAG_SYSTEM, "LEDC channel %d attached to BUZZ_PIN %d", BUZZER_CHANNEL, BUZZ_PIN);
+    // 初始化LEDC通道用于蜂鸣器控制 (使用新版本API)
+    ledcAttach(BUZZ_PIN, 2000, 8);  // 频率2000Hz, 8位分辨率
+    LOG_D(TAG_SYSTEM, "LEDC attached to BUZZ_PIN %d", BUZZ_PIN);
 
     // 初始化当前效果实例
     _currentEffect = SoundEffectInstance();
@@ -329,7 +329,7 @@ void BuzzerSoundManager::playNextNote(SoundEffectInstance& instance) {
         uint8_t duty = volumeToPWMDuty(instance.config.volume);
         
         // 设置频率和开始播放（使用已初始化的通道）
-        ledcChangeFrequency(BUZZ_PIN, note.frequency, 8);
+        ledcWriteTone(BUZZ_PIN, note.frequency);
         ledcWrite(BUZZ_PIN, duty);
         
         instance.playing = true;

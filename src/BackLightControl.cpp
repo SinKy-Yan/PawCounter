@@ -5,8 +5,8 @@
 
 void BacklightControl::begin() {
     if (!_initialized) {
-        // 配置 LEDC 通道并附加到 GPIO
-        ledcAttachChannel(LCD_BL, LEDC_BASE_FREQ, LEDC_TIMER_BIT, LEDC_CHANNEL_0);
+        // 配置 LEDC 通道并附加到 GPIO (使用新版本API)
+        ledcAttach(LCD_BL, LEDC_BASE_FREQ, LEDC_TIMER_BIT);
         
         // 设置初始值
         _currentBrightness = 0;
@@ -15,7 +15,7 @@ void BacklightControl::begin() {
         _initialized = true;
         
         #ifdef DEBUG_MODE
-        Serial.println("Backlight initialized on channel " + String(LEDC_CHANNEL_0));
+        Serial.println("Backlight initialized on GPIO " + String(LCD_BL));
         #endif
     }
 }

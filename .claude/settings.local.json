@@ -8,7 +8,12 @@
       "Bash(/mnt/c/.platformio/penv/Scripts/pio.exe run --target upload)",
       "Bash(rg:*)",
       "Bash(find:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(cp:*)",
+      "Bash(/mnt/c/.platformio/penv/Scripts/pio.exe run --target clean)",
+      "Bash(git add:*)",
+      "Bash(git rm:*)",
+      "Bash(true)"
     ],
     "deny": []
   }

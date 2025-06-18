@@ -1,516 +1,79 @@
-/**
- * @file main_calculator.cpp
- * @brief 新版计算器主程序
- * @details 展示可扩展计算器架构的完整功能
- * 
- * 功能特性：
- * - 双重显示输出（LCD + 串口）
- * - 多种计算模式（基本、科学、财务）
- * - 完整的计算历史
- * - 财务模式的单位显示
- * - 可扩展的架构设计
- * 
- * @author Calculator Project
- * @date 2024-01-07
- */
-
 #include <Arduino.h>
-#include <memory>
-#include "Logger.h"
-#include "KeypadControl.h"
-#include "Initialization.h"
-#include "BackLightControl.h"
+#include <Arduino_GFX_Library.h>
 
-// 新计算器系统头文件
-#include "CalculatorCore.h"
-#include "CalculatorDisplay.h"
-#include "CalculationEngine.h"
-#include "CalculatorModes.h"
+// LCD 引脚定义
+#define LCD_RST   48
+#define LCD_CS    45
+#define LCD_DC    38
+#define LCD_SCK   39
+#define LCD_BL    42
+#define LCD_MOSI  41
 
-// 反馈系统头文件
-#include "FeedbackManager.h"
-#include "LEDEffectManager.h"
-#include "BuzzerSoundManager.h"
+#define DISPLAY_WIDTH 480
+#define DISPLAY_HEIGHT 128
 
-// 全局对象
-std::shared_ptr<CalculatorCore> calculator;
-std::shared_ptr<CalculatorDisplay> display;
-std::shared_ptr<CalculationEngine> engine;
-std::shared_ptr<FinancialMode> financialMode;
-KeypadControl keypad;
+Arduino_DataBus *bus = nullptr;
+Arduino_GFX *gfx = nullptr;
 
-// 当前模式指示
-uint8_t currentModeId = 0;
-const char* modeNames[] = {"基本", "科学", "财务"};
-
-// 按键测试模式标志
-bool keyMappingTestMode = false;
-
-// 函数声明
-void showKeyDetails(uint8_t keyNum);
-void testKeyMapping();
-
-/**
- * @brief 按键事件回调函数
- */
-void onKeyEvent(KeyEventType type, uint8_t key, uint8_t* combo, uint8_t count) {
-    LOG_I(TAG_MAIN, "Key event: type=%d, key=%d", type, key);
-    
-    // 触发按键反馈（根据事件类型）
-    bool isLongPress = (type == KEY_EVENT_LONGPRESS);
-    if (type == KEY_EVENT_PRESS) {
-        FEEDBACK_MGR.triggerKeyFeedback(key, true, isLongPress);
-    } else if (type == KEY_EVENT_RELEASE) {
-        FEEDBACK_MGR.triggerKeyFeedback(key, false, false);
-    }
-    
-    // 只处理按下事件进行功能处理
-    if (type != KEY_EVENT_PRESS) {
-        return;
-    }
-    
-    // 如果在按键映射测试模式，显示详细信息
-    if (keyMappingTestMode) {
-        showKeyDetails(key);
-        return;
-    }
-    
-    // 传递给计算器核心处理
-    if (calculator) {
-        bool success = calculator->handleKeyInput(key);
-        
-        // 根据处理结果触发反馈
-        if (!success) {
-            FEEDBACK_ERROR();
-        }
-    }
-}
-
-/**
- * @brief 简化的基本模式实现
- */
-class SimpleBasicMode : public CalculatorMode {
-public:
-    SimpleBasicMode() : CalculatorMode(createBasicConfig()) {}
-    
-    bool initialize() override {
-        LOG_I(TAG_MAIN, "Basic mode initialized");
-        return true;
-    }
-    
-    bool handleKeyInput(uint8_t keyPosition, bool isLongPress = false,
-                       bool isSecondFunction = false) override {
-        // 基本模式的按键处理逻辑
-        LOG_D(TAG_MAIN, "Basic mode handling key: %d", keyPosition);
-        return true;
-    }
-    
-    void updateDisplay() override {
-        // 更新显示
-    }
-    
-    String getHelpText() const override {
-        return "基本计算模式 - 支持四则运算";
-    }
-
-private:
-    static ModeConfig createBasicConfig() {
-        ModeConfig config;
-        config.name = "基本模式";
-        config.description = "基础四则运算";
-        config.type = ModeType::BASIC;
-        config.defaultPrecision = PrecisionLevel::STANDARD;
-        config.supportsMemory = true;
-        config.supportsHistory = true;
-        config.supportsSecondFunction = false;
-        return config;
-    }
-};
-
-/**
- * @brief 按键映射测试功能
- */
-void testKeyMapping() {
-    if (!keyMappingTestMode) {
-        keyMappingTestMode = true;
-        LOG_I(TAG_MAIN, "=== 按键映射测试模式启动 ===");
-        LOG_I(TAG_MAIN, "请依次按下每个按键，观察显示的功能是否正确");
-        LOG_I(TAG_MAIN, "");
-        LOG_I(TAG_MAIN, "预期的按键布局：");
-        LOG_I(TAG_MAIN, "Row 1: [ON/OFF] [  BT  ] [ PCT ] [  C  ] [ DEL ]");
-        LOG_I(TAG_MAIN, "Row 2: [  7   ] [  8   ] [  9  ] [ MUL ] [+/- ]");
-        LOG_I(TAG_MAIN, "Row 3: [  4   ] [  5   ] [  6  ] [ SUB ] [ DIV ]");
-        LOG_I(TAG_MAIN, "Row 4: [  1   ] [  2   ] [  3  ] [ ADD ] [ EQ  ]");
-        LOG_I(TAG_MAIN, "Row 5: [  0   ] [  .   ]");
-        LOG_I(TAG_MAIN, "");
-        LOG_I(TAG_MAIN, "开始测试 - 按任意键查看其功能定义...");
-        LOG_I(TAG_MAIN, "输入 'keymap' 再次退出测试模式");
-    } else {
-        keyMappingTestMode = false;
-        LOG_I(TAG_MAIN, "=== 按键映射测试模式关闭 ===");
-        LOG_I(TAG_MAIN, "恢复正常计算器功能");
-    }
-}
-
-/**
- * @brief 显示按键详细信息
- */
-void showKeyDetails(uint8_t keyNum) {
-    LOG_I(TAG_MAIN, "--- 按键 %d 详细信息 ---", keyNum);
-    
-    // 显示KEY_FUNCTIONS中的定义
-    for(int i = 0; i < 22; i++) {
-        if(keyNum == i + 1) {
-            // 从Calculator.cpp导入的KEY_FUNCTIONS定义
-            const char* functions[][4] = {
-                {"ON/OFF", "功能键", "电源开关"},          // Key 1
-                {"7", "数字键", "数字7"},                 // Key 2  
-                {"4", "数字键", "数字4"},                 // Key 3
-                {"1", "数字键", "数字1"},                 // Key 4
-                {"0", "数字键", "数字0"},                 // Key 5
-                {"BT", "功能键", "蓝牙"},                 // Key 6
-                {"8", "数字键", "数字8"},                 // Key 7
-                {"5", "数字键", "数字5"},                 // Key 8
-                {"2", "数字键", "数字2"},                 // Key 9
-                {"PCT", "运算符", "百分号"},              // Key 10
-                {"9", "数字键", "数字9"},                 // Key 11
-                {"6", "数字键", "数字6"},                 // Key 12
-                {"3", "数字键", "数字3"},                 // Key 13
-                {".", "小数点", "小数点"},                // Key 14
-                {"C", "功能键", "清除"},                  // Key 15
-                {"MUL", "运算符", "乘法"},                // Key 16
-                {"SUB", "运算符", "减法"},                // Key 17
-                {"ADD", "运算符", "加法"},                // Key 18
-                {"DEL", "功能键", "删除"},                // Key 19
-                {"+/-", "功能键", "正负号"},              // Key 20
-                {"DIV", "运算符", "除法"},                // Key 21
-                {"EQ", "功能键", "等号"}                  // Key 22
-            };
-            
-            if(i < 22) {
-                LOG_I(TAG_MAIN, "  标签: %s", functions[i][0]);
-                LOG_I(TAG_MAIN, "  类型: %s", functions[i][1]);
-                LOG_I(TAG_MAIN, "  说明: %s", functions[i][2]);
-            }
-            break;
-        }
-    }
-    
-    // 显示硬件映射信息
-    LOG_I(TAG_MAIN, "  硬件信息:");
-    LOG_I(TAG_MAIN, "    物理编号: %d", keyNum);
-    if(keyNum >= 1 && keyNum <= 22) {
-        // 从KeypadControl.cpp的KEY_POSITIONS获取位位置
-        uint8_t bitPositions[] = {8,7,6,5,4,3,2,1,16,15,14,13,12,11,10,9,24,23,22,21,20,19};
-        LOG_I(TAG_MAIN, "    寄存器位: %d", bitPositions[keyNum-1]);
-    }
-    
-    LOG_I(TAG_MAIN, "");
-}
-
-/**
- * @brief 串口命令处理
- */
-void handleSerialCommands() {
-    if (Serial.available()) {
-        String command = Serial.readStringUntil('\n');
-        command.trim();
-        
-        if (command == "help" || command == "h") {
-            LOG_I(TAG_MAIN, "=== 计算器命令帮助 ===");
-            LOG_I(TAG_MAIN, "help/h     - 显示帮助");
-            LOG_I(TAG_MAIN, "mode/m     - 切换模式");
-            LOG_I(TAG_MAIN, "test       - 测试计算");
-            LOG_I(TAG_MAIN, "financial  - 财务模式演示");
-            LOG_I(TAG_MAIN, "clear/c    - 清除显示");
-            LOG_I(TAG_MAIN, "status/s   - 显示状态");
-            LOG_I(TAG_MAIN, "keymap     - 按键映射测试");
-            LOG_I(TAG_MAIN, "layout     - 显示按键布局");
-            LOG_I(TAG_MAIN, "");
-            LOG_I(TAG_MAIN, "=== 反馈系统命令 ===");
-            LOG_I(TAG_MAIN, "feedback   - 反馈系统状态");
-            LOG_I(TAG_MAIN, "silent     - 切换静音模式");
-            LOG_I(TAG_MAIN, "volume [0-100] - 设置音量");
-            LOG_I(TAG_MAIN, "bright [0-255] - 设置亮度");
-            LOG_I(TAG_MAIN, "testled    - 测试LED效果");
-            LOG_I(TAG_MAIN, "ledtest    - LED连接测试");
-            LOG_I(TAG_MAIN, "testsound  - 测试音效");
-            LOG_I(TAG_MAIN, "startup    - 测试启动效果（灯光+声音）");
-            LOG_I(TAG_MAIN, "fasttest   - 快速按键响应测试");
-            LOG_I(TAG_MAIN, "longtest   - 长按效果测试");
-            
-        } else if (command == "mode" || command == "m") {
-            currentModeId = (currentModeId + 1) % 3;
-            calculator->switchMode(currentModeId);
-            LOG_I(TAG_MAIN, "切换到: %s", modeNames[currentModeId]);
-            
-        } else if (command == "test") {
-            LOG_I(TAG_MAIN, "=== 计算测试 ===");
-            if (engine) {
-                auto result = engine->calculate(123.45, 67.89, Operator::ADD);
-                if (result.isValid) {
-                    LOG_I(TAG_MAIN, "123.45 + 67.89 = %.2f", result.value);
-                } else {
-                    LOG_E(TAG_MAIN, "计算错误: %s", result.errorMessage.c_str());
-                }
-            }
-            
-        } else if (command == "financial") {
-            LOG_I(TAG_MAIN, "=== 财务模式演示 ===");
-            calculator->switchMode(2);  // 切换到财务模式
-            
-            // 演示不同金额的单位显示
-            double amounts[] = {1234.56, 98765.43, 1234567.89, 99999999.99};
-            const char* descriptions[] = {"小额", "中额", "大额", "巨额"};
-            
-            for (int i = 0; i < 4; i++) {
-                LOG_I(TAG_MAIN, "%s示例: ¥%.2f", descriptions[i], amounts[i]);
-                if (financialMode) {
-                    financialMode->setAmount(amounts[i]);
-                }
-                delay(2000);  // 等待2秒显示
-            }
-            
-        } else if (command == "clear" || command == "c") {
-            calculator->clearAll();
-            LOG_I(TAG_MAIN, "显示已清除");
-            
-        } else if (command == "keymap") {
-            testKeyMapping();
-            
-        } else if (command == "layout") {
-            LOG_I(TAG_MAIN, "=== 按键布局图 ===");
-            LOG_I(TAG_MAIN, "");
-            LOG_I(TAG_MAIN, "物理按键布局 (共22个按键):");
-            LOG_I(TAG_MAIN, "┌───────┬───────┬───────┬───────┬───────┐");
-            LOG_I(TAG_MAIN, "│Key 1  │Key 6  │Key 10 │Key 15 │Key 19 │");
-            LOG_I(TAG_MAIN, "│ON/OFF │  BT   │ PCT   │  C    │ DEL   │");
-            LOG_I(TAG_MAIN, "├───────┼───────┼───────┼───────┼───────┤");
-            LOG_I(TAG_MAIN, "│Key 2  │Key 7  │Key 11 │Key 16 │Key 20 │");
-            LOG_I(TAG_MAIN, "│  7    │  8    │  9    │ MUL   │ +/-   │");
-            LOG_I(TAG_MAIN, "├───────┼───────┼───────┼───────┼───────┤");
-            LOG_I(TAG_MAIN, "│Key 3  │Key 8  │Key 12 │Key 17 │Key 21 │");
-            LOG_I(TAG_MAIN, "│  4    │  5    │  6    │ SUB   │ DIV   │");
-            LOG_I(TAG_MAIN, "├───────┼───────┼───────┼───────┼───────┤");
-            LOG_I(TAG_MAIN, "│Key 4  │Key 9  │Key 13 │Key 18 │Key 22 │");
-            LOG_I(TAG_MAIN, "│  1    │  2    │  3    │ ADD   │ EQ    │");
-            LOG_I(TAG_MAIN, "├───────┼───────┼───────┴───────┴───────┤");
-            LOG_I(TAG_MAIN, "│Key 5  │Key 14 │                       │");
-            LOG_I(TAG_MAIN, "│  0    │  .    │                       │");
-            LOG_I(TAG_MAIN, "└───────┴───────┴───────────────────────┘");
-            LOG_I(TAG_MAIN, "");
-            LOG_I(TAG_MAIN, "使用 'keymap' 命令开始按键测试");
-            
-        } else if (command == "status" || command == "s") {
-            LOG_I(TAG_MAIN, "=== 计算器状态 ===");
-            LOG_I(TAG_MAIN, "当前模式: %s", modeNames[currentModeId]);
-            LOG_I(TAG_MAIN, "状态: %d", (int)calculator->getState());
-            LOG_I(TAG_MAIN, "显示: %s", calculator->getCurrentDisplay().c_str());
-            LOG_I(TAG_MAIN, "历史记录: %d 条", calculator->getHistory().size());
-            
-        } else if (command == "feedback") {
-            LOG_I(TAG_MAIN, "=== 反馈系统状态 ===");
-            const auto& stats = FEEDBACK_MGR.getStats();
-            const auto& prefs = FEEDBACK_MGR.getUserPreferences();
-            LOG_I(TAG_MAIN, "反馈模式: %d", prefs.mode);
-            LOG_I(TAG_MAIN, "总反馈次数: %lu", stats.totalFeedbacks);
-            LOG_I(TAG_MAIN, "LED激活次数: %lu", stats.ledActivations);
-            LOG_I(TAG_MAIN, "音效激活次数: %lu", stats.soundActivations);
-            LOG_I(TAG_MAIN, "全局音量: %d", prefs.globalVolume);
-            LOG_I(TAG_MAIN, "全局亮度: %d", prefs.globalBrightness);
-            LOG_I(TAG_MAIN, "按键音: %s", prefs.keyClickSound ? "开启" : "关闭");
-            LOG_I(TAG_MAIN, "系统音: %s", prefs.systemSounds ? "开启" : "关闭");
-            LOG_I(TAG_MAIN, "视觉效果: %s", prefs.visualEffects ? "开启" : "关闭");
-            
-        } else if (command == "silent") {
-            static bool silentMode = false;
-            silentMode = !silentMode;
-            FEEDBACK_MGR.setFeedbackMode(silentMode ? MODE_SILENT : MODE_FULL);
-            LOG_I(TAG_MAIN, "静音模式: %s", silentMode ? "开启" : "关闭");
-            
-        } else if (command.startsWith("volume ")) {
-            int volume = command.substring(7).toInt();
-            if (volume >= 0 && volume <= 100) {
-                BUZZER_MGR.setGlobalVolume(volume);
-                LOG_I(TAG_MAIN, "音量设置为: %d", volume);
-            } else {
-                LOG_W(TAG_MAIN, "音量范围: 0-100");
-            }
-            
-        } else if (command.startsWith("bright ")) {
-            int brightness = command.substring(7).toInt();
-            if (brightness >= 0 && brightness <= 255) {
-                LED_MGR.setGlobalBrightness(brightness);
-                LOG_I(TAG_MAIN, "亮度设置为: %d", brightness);
-            } else {
-                LOG_W(TAG_MAIN, "亮度范围: 0-255");
-            }
-            
-        } else if (command == "testled") {
-            LOG_I(TAG_MAIN, "测试LED效果...");
-            LED_MGR.startupEffect();
-            
-        } else if (command == "ledtest") {
-            LOG_I(TAG_MAIN, "=== LED连接测试 ===");
-            // 逐个点亮每个LED来测试连接
-            for (uint8_t i = 0; i < NUM_LEDS; i++) {
-                leds[i] = CRGB::Red;
-                FastLED.show();
-                LOG_I(TAG_MAIN, "点亮LED %d (红色)", i);
-                delay(200);
-                leds[i] = CRGB::Black;
-                FastLED.show();
-                delay(100);
-            }
-            LOG_I(TAG_MAIN, "LED连接测试完成");
-            
-        } else if (command == "testsound") {
-            LOG_I(TAG_MAIN, "测试音效...");
-            BUZZER_MGR.startupSound();
-            
-        } else if (command == "startup") {
-            LOG_I(TAG_MAIN, "=== 测试启动效果 ===");
-            FEEDBACK_MGR.triggerSystemFeedback(SCENE_SYSTEM_STARTUP);
-            FEEDBACK_MGR.update();  // 立即更新以确保效果开始
-            LOG_I(TAG_MAIN, "启动效果已触发");
-            
-        } else if (command == "fasttest") {
-            LOG_I(TAG_MAIN, "=== 快速按键响应测试 ===");
-            for (int i = 0; i < 5; i++) {
-                // 模拟快速按键：按下->释放
-                FEEDBACK_MGR.triggerKeyFeedback(4, true);   // 按下
-                delay(50);  // 50ms后释放
-                FEEDBACK_MGR.triggerKeyFeedback(4, false);  // 释放
-                delay(100); // 100ms间隔
-                LOG_I(TAG_MAIN, "快速按键测试 %d/5", i+1);
-            }
-            LOG_I(TAG_MAIN, "快速按键测试完成");
-            
-        } else if (command == "longtest") {
-            LOG_I(TAG_MAIN, "=== 长按效果测试 ===");
-            FEEDBACK_MGR.triggerKeyFeedback(4, true);        // 按下
-            delay(100);
-            FEEDBACK_MGR.triggerKeyFeedback(4, true, true);  // 长按
-            delay(2000);  // 等待2秒观察效果
-            FEEDBACK_MGR.triggerKeyFeedback(4, false);       // 释放
-            LOG_I(TAG_MAIN, "长按测试完成");
-            
-        } else if (command.length() > 0) {
-            LOG_W(TAG_MAIN, "未知命令: %s (输入 help 查看帮助)", command.c_str());
-        }
-    }
-}
-
-/**
- * @brief 系统初始化
- */
 void setup() {
     Serial.begin(115200);
-    delay(1000);  // 等待串口稳定
+    Serial.println("=== 计算器屏幕测试 ===");
     
-    // 初始化日志系统
-    Logger& logger = Logger::getInstance();
-    LoggerConfig logConfig = Logger::getDefaultConfig();
-    logConfig.level = LOG_LEVEL_INFO;  // 设置为INFO级别
-    logger.begin(logConfig);
+    // 背光控制 - 确保在屏幕初始化后再开启
+    pinMode(LCD_BL, OUTPUT);
+    digitalWrite(LCD_BL, LOW); // 先关闭背光
     
-    // 启用自定义日志格式，在每行前显示日志等级
-    logger.setCustomFormat(true);
+    Serial.println("1. 初始化显示总线...");
+    bus = new Arduino_HWSPI(LCD_DC, LCD_CS, LCD_SCK, LCD_MOSI);
     
-    LOG_I(TAG_MAIN, "=== 新版计算器系统启动 ===");
-    LOG_I(TAG_MAIN, "版本: 2.0 - 可扩展架构");
-    LOG_I(TAG_MAIN, "特性: 双显示 + 多模式 + 单位显示");
+    Serial.println("2. 初始化显示驱动...");
+    gfx = new Arduino_NV3041A(bus, LCD_RST, 0, false, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0, 0, 0);
     
-    // 初始化硬件
-    LOG_I(TAG_MAIN, "初始化硬件系统...");
-    initDisplay();
-    initLEDs();
+    Serial.println("3. 启动显示硬件...");
+    gfx->begin();
     
-    // 初始化背光控制
-    BacklightControl::getInstance().begin();
-    BacklightControl::getInstance().setBacklight(50);
+    // 延迟确保初始化完成
+    delay(100);
     
-    // 初始化反馈系统
-    LOG_I(TAG_MAIN, "初始化反馈系统...");
-    if (!FEEDBACK_MGR.begin()) {
-        LOG_E(TAG_MAIN, "反馈系统初始化失败");
+    // 开启背光
+    digitalWrite(LCD_BL, HIGH);
+    Serial.println("4. 背光已开启");
+    
+    // 绘制彩虹条纹验证线序
+    Serial.println("5. 绘制彩虹条纹验证线序...");
+    for (int x = 0; x < DISPLAY_WIDTH; x++) {
+        uint16_t color = gfx->color565(
+            (x * 255) / DISPLAY_WIDTH,        // 红色渐变
+            ((x * 2) % 255),                  // 绿色变化
+            255 - ((x * 255) / DISPLAY_WIDTH) // 蓝色反向渐变
+        );
+        gfx->drawFastVLine(x, 0, DISPLAY_HEIGHT, color);
     }
     
-    // 初始化键盘
-    keypad.begin();
-    keypad.setKeyEventCallback(onKeyEvent);
-    
-    // 创建计算引擎
-    LOG_I(TAG_MAIN, "创建计算引擎...");
-    engine = std::make_shared<CalculationEngine>();
-    engine->begin();
-    
-    // 创建显示管理器
-    LOG_I(TAG_MAIN, "创建显示系统...");
-    auto lcdDisplay = std::make_shared<LCDDisplay>(gfx);
-    auto serialDisplay = std::make_shared<SerialDisplay>();
-    display = std::make_shared<DualDisplay>(lcdDisplay, serialDisplay);
-    
-    // 初始化显示管理器（LCD已在initDisplay()中初始化了硬件）
-    display->begin();
-    
-    // 创建计算器核心
-    LOG_I(TAG_MAIN, "创建计算器核心...");
-    calculator = std::make_shared<CalculatorCore>();
-    calculator->setDisplay(display);
-    calculator->setCalculationEngine(engine);
-    calculator->begin();
-    
-    // 注册计算模式
-    LOG_I(TAG_MAIN, "注册计算模式...");
-    
-    // 基本模式
-    auto basicMode = std::make_shared<SimpleBasicMode>();
-    calculator->addMode(basicMode);
-    
-    // 财务模式  
-    financialMode = std::make_shared<FinancialMode>();
-    calculator->addMode(financialMode);
-    
-    // 激活财务模式（默认模式）
-    calculator->switchMode(1);
-    
-    // 显示欢迎信息
-    display->showStatus("计算器已就绪 - 输入 help 查看命令");
-    
-    LOG_I(TAG_MAIN, "=== 系统初始化完成 ===");
-    LOG_I(TAG_MAIN, "可用模式: 基本, 财务");
-    LOG_I(TAG_MAIN, "串口命令: help, mode, test, financial, clear, status");
-    LOG_I(TAG_MAIN, "按键输入已启用");
-    
-    // 在所有初始化完成后播放启动动画
-    LOG_I(TAG_MAIN, "播放启动动画...");
-    FEEDBACK_MGR.triggerSystemFeedback(SCENE_SYSTEM_STARTUP);
-    
-    // 立即执行一次更新循环以确保动画开始
-    FEEDBACK_MGR.update();
-    LOG_I(TAG_MAIN, "启动动画更新完成");
+    Serial.println("彩虹图已显示");
 }
 
-/**
- * @brief 主循环
- */
 void loop() {
-    // 更新硬件系统
-    keypad.update();
-    BacklightControl::getInstance().update();
+    // 循环闪烁测试
+    static unsigned long lastTime = 0;
+    static bool toggle = false;
     
-    // 更新反馈系统
-    FEEDBACK_MGR.update();
-    
-    // 更新计算器系统
-    if (calculator) {
-        calculator->update();
+    if (millis() - lastTime > 1000) {
+        lastTime = millis();
+        toggle = !toggle;
+        
+        if (gfx) {
+            if (toggle) {
+                gfx->fillScreen(0x0000); // 黑色
+                gfx->setTextColor(0xFFFF);
+                gfx->setCursor(10, 60);
+                gfx->print("LCD OK - BLACK");
+            } else {
+                gfx->fillScreen(0x001F); // 蓝色
+                gfx->setTextColor(0xFFFF);
+                gfx->setCursor(10, 60);
+                gfx->print("LCD OK - BLUE");
+            }
+        }
     }
-    
-    // 处理串口命令
-    handleSerialCommands();
-    
-    // 保持响应性
-    delay(1);
 }
