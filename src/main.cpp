@@ -13,6 +13,10 @@
 #include "CalculatorDisplay.h"
 #include "CalculationEngine.h"
 
+#ifdef ENABLE_LVGL_UI
+#include "LVGLDisplay.h"
+#endif
+
 // 全局对象
 Arduino_DataBus *bus = nullptr;
 Arduino_GFX *gfx = nullptr;
@@ -26,6 +30,10 @@ CRGB leds[NUM_LEDS];
 std::shared_ptr<CalculationEngine> engine;
 std::shared_ptr<CalculatorDisplay> display;
 std::shared_ptr<CalculatorCore> calculator;
+
+#ifdef ENABLE_LVGL_UI
+std::shared_ptr<LVGLDisplay> lvglDisplay;
+#endif
 
 // 函数声明
 void initDisplay();
@@ -119,9 +127,17 @@ void setup() {
     
     // 9. 创建显示管理器
     Serial.println("9. 初始化显示管理器...");
+#ifdef ENABLE_LVGL_UI
+    Serial.println("  - 使用LVGL UI界面");
+    lvglDisplay = std::make_shared<LVGLDisplay>(gfx, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    auto serialDisplay = std::make_shared<SerialDisplay>();
+    display = std::make_shared<DualDisplay>(lvglDisplay, serialDisplay);
+#else
+    Serial.println("  - 使用Arduino_GFX界面");
     auto lcdDisplay = std::make_shared<LCDDisplay>(gfx);
     auto serialDisplay = std::make_shared<SerialDisplay>();
     display = std::make_shared<DualDisplay>(lcdDisplay, serialDisplay);
+#endif
     if (!display->begin()) {
         LOG_E(TAG_MAIN, "显示管理器初始化失败");
         Serial.println("❌ 显示管理器初始化失败");
@@ -303,7 +319,11 @@ void handleSerialCommands() {
             Serial.println("== 调试功能 ==");
             Serial.println("layout         - 显示按键布局");
             Serial.println("keymap         - 按键映射测试");
+#ifdef ENABLE_LVGL_UI
+            Serial.println("rotate [0-3]   - 设置LVGL显示旋转(0=0°,1=90°,2=180°,3=270°)");
+#else
             Serial.println("rotate [0-1]   - 设置显示旋转角度(0=0度,1=90度)");
+#endif
             Serial.println("log [level]    - 设置日志级别 (e/w/i/d/v)");
             Serial.println();
             Serial.println("== 配置状态 ==");
@@ -316,6 +336,11 @@ void handleSerialCommands() {
             Serial.println("电池管理: 已启用");
 #else
             Serial.println("电池管理: 已禁用");
+#endif
+#ifdef ENABLE_LVGL_UI
+            Serial.println("UI界面: LVGL");
+#else
+            Serial.println("UI界面: Arduino_GFX");
 #endif
             Serial.println("=========================\n");
         }
@@ -401,6 +426,18 @@ void handleSerialCommands() {
         }
         else if (command.startsWith("rotate ")) {
             int rotation = command.substring(7).toInt();
+            
+#ifdef ENABLE_LVGL_UI
+            if (rotation >= 0 && rotation <= 3) {
+                uint16_t angleDegree = rotation * 90; // 转换为角度
+                if (lvglDisplay) {
+                    lvglDisplay->setRotation(angleDegree);
+                    Serial.printf("LVGL显示旋转设置为: %d度\n", angleDegree);
+                }
+            } else {
+                Serial.println("LVGL旋转角度范围: 0-3 (0=0度, 1=90度, 2=180度, 3=270度)");
+            }
+#else
             if (rotation >= 0 && rotation <= 1) {
                 if (gfx) {
                     gfx->setRotation(rotation);
@@ -417,12 +454,13 @@ void handleSerialCommands() {
                     uint16_t descY = DISPLAY_HEIGHT - 80 - 24;
                     gfx->setCursor(descX, descY);
                     gfx->print(rotation == 0 ? "(0 degree)" : "(90 degree)");
-                    Serial.printf("显示旋转设置为: %d (%s)\n", rotation, 
+                    Serial.printf("Arduino_GFX显示旋转设置为: %d (%s)\n", rotation, 
                                 rotation == 0 ? "0度" : "90度");
                 }
             } else {
-                Serial.println("旋转角度范围: 0-1 (0=0度, 1=90度) - 此LCD只支持这两个角度");
+                Serial.println("Arduino_GFX旋转角度范围: 0-1 (0=0度, 1=90度)");
             }
+#endif
         }
 #ifdef ENABLE_BATTERY_MANAGER
         else if (command == "battery" || command == "b") {
@@ -460,6 +498,13 @@ void updateSystems() {
     
     // 更新反馈系统
     FEEDBACK_MGR.update();
+    
+#ifdef ENABLE_LVGL_UI
+    // 更新LVGL任务处理器
+    if (lvglDisplay) {
+        lvglDisplay->update();
+    }
+#endif
     
     // 定期更新电池状态（每5秒）
 #ifdef ENABLE_BATTERY_MANAGER
