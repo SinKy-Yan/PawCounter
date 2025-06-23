@@ -76,7 +76,7 @@ void LCDDisplay::updateDisplay(const String& number,
         _gfx->print(expression);
     }
     
-    DISPLAY_LOG_V("LCD display updated with 180° rotation");
+    DISPLAY_LOG_V("LCD display updated (normal orientation)");
 }
 
 void LCDDisplay::showError(CalculatorError error, const String& message) {
@@ -266,14 +266,9 @@ NumberFormat LCDDisplay::getDefaultNumberFormat() {
 }
 
 void LCDDisplay::flipCoordinates180(uint16_t x, uint16_t y, uint16_t& flippedX, uint16_t& flippedY) {
-    // 180度翻转：(x,y) -> (width-x, height-y)
-    // 需要考虑文字的实际显示位置调整
-    flippedX = _displayWidth - x - 50;  // 减去文字预估宽度
-    flippedY = _displayHeight - y - 20;  // 减去文字高度
-    
-    // 确保坐标不会变成负数
-    if (flippedX > _displayWidth) flippedX = 10;
-    if (flippedY > _displayHeight) flippedY = 10;
+    // 禁用180度翻转：直接使用原始坐标
+    flippedX = x;
+    flippedY = y;
 }
 
 // ============================================================================

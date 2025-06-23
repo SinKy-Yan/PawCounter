@@ -163,25 +163,24 @@ void setup() {
         gfx->setTextColor(0x07E0); // 绿色文字
         gfx->setTextSize(3);       // 标题字体
         
-        // 计算180度翻转后的坐标
-        // 原始坐标(10, 30) -> 翻转后坐标
-        uint16_t titleX = DISPLAY_WIDTH - 10 - 200; // 减去标题宽度估计
-        uint16_t titleY = DISPLAY_HEIGHT - 30 - 24;  // 减去字体高度
+        // 使用正常坐标（不翻转）
+        uint16_t titleX = 10;
+        uint16_t titleY = 30;
         gfx->setCursor(titleX, titleY);
         gfx->print("Calculator Ready");
         
         gfx->setTextColor(0xFFFF); // 白色文字
         gfx->setTextSize(2);       // 版本信息字体
         
-        // 版本信息翻转坐标
-        uint16_t versionX = DISPLAY_WIDTH - 10 - 250;
-        uint16_t versionY = DISPLAY_HEIGHT - 70 - 16;
+        // 版本信息正常坐标
+        uint16_t versionX = 10;
+        uint16_t versionY = 70;
         gfx->setCursor(versionX, versionY);
         gfx->print("ESP32-S3 Calculator v2.0");
         
-        // 提示信息翻转坐标
-        uint16_t promptX = DISPLAY_WIDTH - 10 - 200;
-        uint16_t promptY = DISPLAY_HEIGHT - 100 - 16;
+        // 提示信息正常坐标
+        uint16_t promptX = 10;
+        uint16_t promptY = 100;
         gfx->setCursor(promptX, promptY);
         gfx->print("Press any key to start");
     }
@@ -234,9 +233,9 @@ void initDisplay() {
     // 延迟确保初始化完成
     delay(100);
     
-    // 设置显示旋转（硬件限制：只有0和1有效，需要180度只能用软件实现）
-    gfx->setRotation(0);  // 使用0度，然后在软件层面实现180度翻转
-    Serial.println("  - 显示旋转设置为0度（将通过软件实现180度翻转）");
+    // 设置显示旋转（硬件限制：只有0和1有效）
+    gfx->setRotation(0);  // 使用0度正常显示方向
+    Serial.println("  - 显示旋转设置为0度（正常显示方向）");
     
     // 背光保持关闭，等待后续软件控制
     Serial.println("  - 背光硬件准备完成，等待软件控制");
@@ -311,6 +310,7 @@ void handleSerialCommands() {
             Serial.println("== 硬件控制 ==");
             Serial.println("backlight [0-100] - 设置背光亮度");
             Serial.println("test           - 执行系统测试");
+            Serial.println("testframe      - Arduino GFX红色线框测试");
             Serial.println();
             Serial.println("== 计算器操作 ==");
             Serial.println("clear/c        - 清除显示");
@@ -320,6 +320,8 @@ void handleSerialCommands() {
             Serial.println("layout         - 显示按键布局");
             Serial.println("keymap         - 按键映射测试");
 #ifdef ENABLE_LVGL_UI
+            Serial.println("testgrid       - 显示测试网格和边界");
+            Serial.println("cleargrid      - 清除测试网格，恢复UI");
             Serial.println("rotate [0-3]   - 设置LVGL显示旋转(0=0°,1=90°,2=180°,3=270°)");
 #else
             Serial.println("rotate [0-1]   - 设置显示旋转角度(0=0度,1=90度)");
@@ -373,6 +375,84 @@ void handleSerialCommands() {
         else if (command == "test") {
             Serial.println("执行系统测试...");
             FEEDBACK_MGR.triggerSystemFeedback(SCENE_SUCCESS_NOTIFICATION);
+        }
+        else if (command == "testframe") {
+            Serial.println("绘制Arduino GFX红色线框测试...");
+            if (gfx) {
+                // 清屏为黑色
+                gfx->fillScreen(0x0000);
+                
+                // 绘制外边框线条 - 红色 (RGB565: 0xF800)
+                gfx->drawRect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0xF800);
+                
+                // 绘制内部线框，间隔10像素
+                gfx->drawRect(10, 10, DISPLAY_WIDTH-20, DISPLAY_HEIGHT-20, 0xF800);
+                
+                // 绘制中心十字线
+                gfx->drawLine(DISPLAY_WIDTH/2, 0, DISPLAY_WIDTH/2, DISPLAY_HEIGHT, 0xF800);
+                gfx->drawLine(0, DISPLAY_HEIGHT/2, DISPLAY_WIDTH, DISPLAY_HEIGHT/2, 0xF800);
+                
+                // 在四个角落绘制小方块
+                gfx->fillRect(0, 0, 20, 20, 0xF800);                    // 左上角
+                gfx->fillRect(DISPLAY_WIDTH-20, 0, 20, 20, 0xF800);     // 右上角
+                gfx->fillRect(0, DISPLAY_HEIGHT-20, 20, 20, 0xF800);    // 左下角
+                gfx->fillRect(DISPLAY_WIDTH-20, DISPLAY_HEIGHT-20, 20, 20, 0xF800); // 右下角
+                
+                // 在底部绘制测试线条
+                for (int y = DISPLAY_HEIGHT-10; y < DISPLAY_HEIGHT; y++) {
+                    gfx->drawLine(0, y, DISPLAY_WIDTH, y, 0xFFFF);  // 白色线条
+                }
+                
+                // 显示坐标信息
+                gfx->setTextColor(0x07E0);  // 绿色文字
+                gfx->setTextSize(2);
+                gfx->setCursor(30, 30);
+                gfx->printf("Frame Test %dx%d", DISPLAY_WIDTH, DISPLAY_HEIGHT);
+                
+                gfx->setCursor(30, 60);
+                gfx->print("Bottom lines:");
+                gfx->setCursor(30, 80);
+                gfx->printf("Y=%d to Y=%d", DISPLAY_HEIGHT-10, DISPLAY_HEIGHT-1);
+                
+                Serial.println("✅ Arduino GFX红色线框已绘制");
+                Serial.printf("外边框: (0,0) 到 (%d,%d)\n", DISPLAY_WIDTH-1, DISPLAY_HEIGHT-1);
+                Serial.printf("底部测试线: Y=%d 到 Y=%d\n", DISPLAY_HEIGHT-10, DISPLAY_HEIGHT-1);
+                Serial.println("检查显示屏是否有底部花屏现象");
+            } else {
+                Serial.println("❌ GFX对象为空");
+            }
+        }
+        else if (command == "testgrid") {
+#ifdef ENABLE_LVGL_UI
+            Serial.println("尝试显示测试网格...");
+            if (lvglDisplay) {
+                Serial.println("LVGL显示对象存在，调用showTestGrid()");
+                lvglDisplay->showTestGrid();
+                Serial.println("显示测试网格 - 查看显示范围和坐标");
+                Serial.println("颜色说明:");
+                Serial.println("  红色: 左上角(0,0)");
+                Serial.println("  绿色: 右上角");
+                Serial.println("  蓝色: 左下角");
+                Serial.println("  黄色: 右下角");
+                Serial.println("  白色: 中心十字线");
+                Serial.println("  灰色: 网格线(50x25像素)");
+                Serial.println("发送 'cleargrid' 恢复正常UI");
+            } else {
+                Serial.println("错误: LVGL显示对象为空指针");
+            }
+#else
+            Serial.println("测试网格功能需要LVGL界面");
+#endif
+        }
+        else if (command == "cleargrid") {
+#ifdef ENABLE_LVGL_UI
+            if (lvglDisplay) {
+                lvglDisplay->clearTestGrid();
+                Serial.println("测试网格已清除，恢复正常计算器UI");
+            }
+#else
+            Serial.println("清除网格功能需要LVGL界面");
+#endif
         }
         else if (command == "clear" || command == "c") {
             if (calculator) {
@@ -444,14 +524,14 @@ void handleSerialCommands() {
                     gfx->fillScreen(0x0000);
                     gfx->setTextColor(0x07E0);
                     gfx->setTextSize(3);
-                    // 应用180度翻转坐标显示旋转测试文本
-                    uint16_t testX = DISPLAY_WIDTH - 10 - 120;
-                    uint16_t testY = DISPLAY_HEIGHT - 50 - 24;
+                    // 使用正常坐标显示旋转测试文本
+                    uint16_t testX = 10;
+                    uint16_t testY = 50;
                     gfx->setCursor(testX, testY);
                     gfx->printf("Rotation: %d", rotation);
                     
-                    uint16_t descX = DISPLAY_WIDTH - 10 - 100;
-                    uint16_t descY = DISPLAY_HEIGHT - 80 - 24;
+                    uint16_t descX = 10;
+                    uint16_t descY = 80;
                     gfx->setCursor(descX, descY);
                     gfx->print(rotation == 0 ? "(0 degree)" : "(90 degree)");
                     Serial.printf("Arduino_GFX显示旋转设置为: %d (%s)\n", rotation, 

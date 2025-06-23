@@ -73,6 +73,16 @@ public:
      * @return LVGL屏幕对象指针
      */
     lv_obj_t* getScreen() const { return _screen; }
+    
+    /**
+     * @brief 显示测试网格和边界信息
+     */
+    void showTestGrid();
+    
+    /**
+     * @brief 清除测试显示，恢复正常UI
+     */
+    void clearTestGrid();
 
 private:
     Arduino_GFX* _gfx;                  ///< 底层显示驱动
