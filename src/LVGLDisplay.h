@@ -37,7 +37,7 @@ public:
      * @param width 显示宽度
      * @param height 显示高度
      */
-    explicit LVGLDisplay(Arduino_GFX* gfx, uint16_t width = 480, uint16_t height = 128);
+    explicit LVGLDisplay(Arduino_GFX* gfx, uint16_t width = 480, uint16_t height = 130);
     
     /**
      * @brief 析构函数
@@ -62,11 +62,7 @@ public:
      */
     void update();
     
-    /**
-     * @brief 设置显示旋转
-     * @param rotation 旋转角度 (0, 90, 180, 270)
-     */
-    void setRotation(uint16_t rotation);
+    
     
     /**
      * @brief 获取LVGL屏幕对象

@@ -54,41 +54,36 @@ void LCDDisplay::updateDisplay(const String& number,
     // 清屏
     _gfx->fillScreen(_theme.backgroundColor);
     
-    // 使用软件180度翻转显示主数字
-    uint16_t x, y;
-    flipCoordinates180(10, 20, x, y);  // 翻转起始坐标
-    
+    // 显示主数字
     _gfx->setTextColor(_theme.resultColor);
     _gfx->setTextSize(_theme.mainFontSize);
-    _gfx->setCursor(x, y);
+    _gfx->setCursor(10, 20);
     
     // 格式化并显示数字
     String formattedNumber = formatDisplayNumber(number);
     _gfx->print(formattedNumber);
     
-    // 如果有表达式，也需要翻转显示
+    // 如果有表达式，也显示
     if (!expression.isEmpty()) {
-        uint16_t exprX, exprY;
-        flipCoordinates180(10, 60, exprX, exprY);
         _gfx->setTextColor(_theme.expressionColor);
         _gfx->setTextSize(_theme.expressionFontSize);
-        _gfx->setCursor(exprX, exprY);
+        _gfx->setCursor(10, 60);
         _gfx->print(expression);
     }
     
-    DISPLAY_LOG_V("LCD display updated (normal orientation)");
+    DISPLAY_LOG_V("LCD display updated");
 }
 
 void LCDDisplay::showError(CalculatorError error, const String& message) {
     if (!_gfx) return;
     
-    // 应用180度坐标翻转
-    uint16_t flippedX, flippedY;
-    flipCoordinates180(10, _displayHeight/2, flippedX, flippedY);
+    // 显示错误消息
+    uint16_t errorX = 10;
+    uint16_t errorY = _displayHeight/2;
     
     _gfx->setTextColor(_theme.errorColor);
     _gfx->setTextSize(2);
-    _gfx->setCursor(flippedX, flippedY);
+    _gfx->setCursor(errorX, errorY);
     _gfx->print("ERROR: ");
     _gfx->print(message);
     
@@ -125,9 +120,9 @@ void LCDDisplay::drawMainNumber(const String& number, uint16_t x, uint16_t y,
                                uint16_t width, uint16_t height) {
     if (!_gfx) return;
     
-    // 应用180度坐标翻转
-    uint16_t flippedX, flippedY;
-    flipCoordinates180(x + 10, y + height/2, flippedX, flippedY);
+    // 计算显示坐标
+    uint16_t displayX = x + 10;
+    uint16_t displayY = y + height/2;
     
     // 设置大字体显示主数字
     _gfx->setTextColor(_theme.resultColor);
@@ -136,8 +131,8 @@ void LCDDisplay::drawMainNumber(const String& number, uint16_t x, uint16_t y,
     // 格式化数字
     String formattedNumber = formatDisplayNumber(number);
     
-    // 使用翻转后的坐标
-    _gfx->setCursor(flippedX, flippedY);
+    // 使用计算后的坐标
+    _gfx->setCursor(displayX, displayY);
     _gfx->print(formattedNumber);
 }
 
@@ -265,11 +260,6 @@ NumberFormat LCDDisplay::getDefaultNumberFormat() {
     return format;
 }
 
-void LCDDisplay::flipCoordinates180(uint16_t x, uint16_t y, uint16_t& flippedX, uint16_t& flippedY) {
-    // 禁用180度翻转：直接使用原始坐标
-    flippedX = x;
-    flippedY = y;
-}
 
 // ============================================================================
 // SerialDisplay 实现

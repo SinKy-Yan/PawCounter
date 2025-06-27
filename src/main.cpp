@@ -157,36 +157,31 @@ void setup() {
     }
     LOG_I(TAG_MAIN, "计算器核心初始化完成");
     
-    // 11. 显示启动信息（应用180度旋转）
+    // 11. 显示启动信息
     if (gfx) {
         gfx->fillScreen(0x0000); // 黑色背景
         gfx->setTextColor(0x07E0); // 绿色文字
         gfx->setTextSize(3);       // 标题字体
         
-        // 使用正常坐标（不翻转）
-        uint16_t titleX = 10;
-        uint16_t titleY = 30;
-        gfx->setCursor(titleX, titleY);
+        // 显示欢迎信息
+        gfx->setCursor(10, 30);
         gfx->print("Calculator Ready");
         
         gfx->setTextColor(0xFFFF); // 白色文字
         gfx->setTextSize(2);       // 版本信息字体
         
-        // 版本信息正常坐标
-        uint16_t versionX = 10;
-        uint16_t versionY = 70;
-        gfx->setCursor(versionX, versionY);
+        // 版本信息
+        gfx->setCursor(10, 70);
         gfx->print("ESP32-S3 Calculator v2.0");
         
-        // 提示信息正常坐标
-        uint16_t promptX = 10;
-        uint16_t promptY = 100;
-        gfx->setCursor(promptX, promptY);
+        // 提示信息
+        gfx->setCursor(10, 100);
         gfx->print("Press any key to start");
     }
     
     // 12. 启动效果
     FEEDBACK_MGR.triggerSystemFeedback(SCENE_SYSTEM_STARTUP);
+    
     
     Serial.println("=== 计算器系统启动完成 ===");
     Serial.println("系统就绪，可以开始使用");
@@ -218,10 +213,19 @@ void initDisplay() {
     digitalWrite(LCD_BL, LOW); // 先关闭背光
     
     Serial.println("  - 初始化显示总线...");
-    bus = new Arduino_HWSPI(LCD_DC, LCD_CS, LCD_SCK, LCD_MOSI);
+    bus = new Arduino_SWSPI(LCD_DC, LCD_CS, LCD_SCK, LCD_MOSI);
     
     Serial.println("  - 初始化显示驱动...");
-    gfx = new Arduino_NV3041A(bus, LCD_RST, 0, true, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0, 0, 0);
+    gfx = new Arduino_NV3041A(bus,
+                             LCD_RST,
+                             2,             // rotation: 0~3
+                             true,          // IPS 屏
+                             480,           // LCD_WIDTH
+                             130,           // LCD_HEIGHT
+                             0,             // 水平偏移（col_offset）
+                             0,
+                             0,
+                             145);          // 垂直偏移（row_offset）
     
     Serial.println("  - 启动显示硬件...");
     if (!gfx->begin()) {
@@ -232,10 +236,6 @@ void initDisplay() {
     
     // 延迟确保初始化完成
     delay(100);
-    
-    // 设置显示旋转（硬件限制：只有0和1有效）
-    gfx->setRotation(0);  // 使用0度正常显示方向
-    Serial.println("  - 显示旋转设置为0度（正常显示方向）");
     
     // 背光保持关闭，等待后续软件控制
     Serial.println("  - 背光硬件准备完成，等待软件控制");
@@ -322,9 +322,6 @@ void handleSerialCommands() {
 #ifdef ENABLE_LVGL_UI
             Serial.println("testgrid       - 显示测试网格和边界");
             Serial.println("cleargrid      - 清除测试网格，恢复UI");
-            Serial.println("rotate [0-3]   - 设置LVGL显示旋转(0=0°,1=90°,2=180°,3=270°)");
-#else
-            Serial.println("rotate [0-1]   - 设置显示旋转角度(0=0度,1=90度)");
 #endif
             Serial.println("log [level]    - 设置日志级别 (e/w/i/d/v)");
             Serial.println();
@@ -503,44 +500,6 @@ void handleSerialCommands() {
                 // 切换按键映射测试模式
                 Serial.println("按键映射测试模式已切换");
             }
-        }
-        else if (command.startsWith("rotate ")) {
-            int rotation = command.substring(7).toInt();
-            
-#ifdef ENABLE_LVGL_UI
-            if (rotation >= 0 && rotation <= 3) {
-                uint16_t angleDegree = rotation * 90; // 转换为角度
-                if (lvglDisplay) {
-                    lvglDisplay->setRotation(angleDegree);
-                    Serial.printf("LVGL显示旋转设置为: %d度\n", angleDegree);
-                }
-            } else {
-                Serial.println("LVGL旋转角度范围: 0-3 (0=0度, 1=90度, 2=180度, 3=270度)");
-            }
-#else
-            if (rotation >= 0 && rotation <= 1) {
-                if (gfx) {
-                    gfx->setRotation(rotation);
-                    gfx->fillScreen(0x0000);
-                    gfx->setTextColor(0x07E0);
-                    gfx->setTextSize(3);
-                    // 使用正常坐标显示旋转测试文本
-                    uint16_t testX = 10;
-                    uint16_t testY = 50;
-                    gfx->setCursor(testX, testY);
-                    gfx->printf("Rotation: %d", rotation);
-                    
-                    uint16_t descX = 10;
-                    uint16_t descY = 80;
-                    gfx->setCursor(descX, descY);
-                    gfx->print(rotation == 0 ? "(0 degree)" : "(90 degree)");
-                    Serial.printf("Arduino_GFX显示旋转设置为: %d (%s)\n", rotation, 
-                                rotation == 0 ? "0度" : "90度");
-                }
-            } else {
-                Serial.println("Arduino_GFX旋转角度范围: 0-1 (0=0度, 1=90度)");
-            }
-#endif
         }
 #ifdef ENABLE_BATTERY_MANAGER
         else if (command == "battery" || command == "b") {

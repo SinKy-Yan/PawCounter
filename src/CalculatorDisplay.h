@@ -247,14 +247,6 @@ private:
      */
     void drawUnitLabels(const String& number, uint16_t x, uint16_t y);
     
-    /**
-     * @brief 转换坐标实现180度翻转
-     * @param x 原始X坐标
-     * @param y 原始Y坐标
-     * @param flippedX 翻转后X坐标（输出）
-     * @param flippedY 翻转后Y坐标（输出）
-     */
-    void flipCoordinates180(uint16_t x, uint16_t y, uint16_t& flippedX, uint16_t& flippedY);
     
     /**
      * @brief 格式化数字显示

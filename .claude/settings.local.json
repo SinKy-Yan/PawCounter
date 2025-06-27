@@ -16,7 +16,9 @@
       "Bash(true)",
       "Bash(git commit:*)",
       "Bash(ls:*)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(sed:*)",
+      "Bash(/mnt/c/.platformio/penv/Scripts/pio.exe run --silent)"
     ],
     "deny": []
   }

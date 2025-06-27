@@ -22,7 +22,7 @@
 
 // =================== 显示屏参数 ===================
 #define DISPLAY_WIDTH 480
-#define DISPLAY_HEIGHT 128
+#define DISPLAY_HEIGHT 130
 
 // =================== 按键和LED引脚定义 ===================
 #define SCAN_PL_PIN   15
