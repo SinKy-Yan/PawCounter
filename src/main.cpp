@@ -81,7 +81,7 @@ void setup() {
     // 4. 初始化背光控制
     Serial.println("4. 初始化背光控制...");
     BacklightControl::getInstance().begin();
-    BacklightControl::getInstance().setBacklight(100, 2000); // 100%亮度，2秒渐变
+    BacklightControl::getInstance().setBacklight(75, 2000);  // 75%亮度，2秒渐变
     LOG_I(TAG_MAIN, "背光控制初始化完成");
     
     // 5. 初始化反馈系统（LED效果 + 蜂鸣器）

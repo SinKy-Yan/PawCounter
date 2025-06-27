@@ -223,7 +223,7 @@ void CalculatorCore::clearAll() {
 
 void CalculatorCore::updateDisplay() {
     if (_display) {
-        _display->updateDisplay(_currentDisplay, _expressionDisplay, _history, _state);
+        _display->updateDisplay(_currentDisplay, _expressionDisplay, _state);
         
         if (_lastError != CalculatorError::NONE) {
             String errorMsg = "Error: ";

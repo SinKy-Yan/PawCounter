@@ -28,7 +28,6 @@ LVGLDisplay::LVGLDisplay(Arduino_GFX* gfx, uint16_t width, uint16_t height)
     , _expressionLabel(nullptr)
     , _statusLabel(nullptr)
     , _modeLabel(nullptr)
-    , _historyContainer(nullptr)
     , _errorPanel(nullptr)
     , _unitPanel(nullptr)
 {
@@ -166,166 +165,58 @@ bool LVGLDisplay::initLVGL() {
 }
 
 void LVGLDisplay::createUI() {
-    LVGL_LOG_D("创建现代化计算器UI组件...");
+    LVGL_LOG_D("创建数码管风格计算器UI...");
     
     // 创建主屏幕
     _screen = lv_obj_create(NULL);
     lv_scr_load(_screen);
+    lv_obj_set_style_bg_color(_screen, lv_color_hex(0x000000), 0);  // 黑色背景
     
-    // 创建主容器 - 全屏
-    _mainContainer = lv_obj_create(_screen);
-    lv_obj_set_size(_mainContainer, _width, 126);  // 限制到安全高度
-    lv_obj_align(_mainContainer, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_clear_flag(_mainContainer, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_pad_all(_mainContainer, 0, 0);
-    lv_obj_set_style_border_width(_mainContainer, 0, 0);
-    
-    // ================ 顶部显示区域 ================
-    // 创建显示面板 (顶部50px高度)
-    lv_obj_t* displayPanel = lv_obj_create(_mainContainer);
-    lv_obj_set_size(displayPanel, _width, 50);
-    lv_obj_align(displayPanel, LV_ALIGN_TOP_MID, 0, 0);
-    lv_obj_set_style_bg_color(displayPanel, lv_color_hex(0x1A1A1A), 0);
-    lv_obj_set_style_border_width(displayPanel, 1, 0);
-    lv_obj_set_style_border_color(displayPanel, lv_color_hex(0x404040), 0);
-    lv_obj_set_style_radius(displayPanel, 8, 0);
+    // 创建数码管显示屏 - 全屏显示区域
+    lv_obj_t* displayPanel = lv_obj_create(_screen);
+    lv_obj_set_size(displayPanel, _width - 10, _height - 10);
+    lv_obj_align(displayPanel, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_bg_color(displayPanel, lv_color_hex(0x0D0D0D), 0);  // 深黑色显示区
+    lv_obj_set_style_border_width(displayPanel, 2, 0);
+    lv_obj_set_style_border_color(displayPanel, lv_color_hex(0x333333), 0);
+    lv_obj_set_style_radius(displayPanel, 3, 0);
     lv_obj_clear_flag(displayPanel, LV_OBJ_FLAG_SCROLLABLE);
     
-    // 主数字显示 - 大字体，右对齐
+    // 主数字显示 - 数码管风格：绿色大字体，右对齐，单行显示
     _mainNumberLabel = lv_label_create(displayPanel);
     lv_label_set_text(_mainNumberLabel, "0");
+    lv_obj_set_style_text_color(_mainNumberLabel, lv_color_hex(0x00FF00), 0);  // 绿色数码管效果
+    lv_obj_set_style_text_font(_mainNumberLabel, LV_FONT_DEFAULT, 0);   // 默认字体
     lv_obj_set_style_text_align(_mainNumberLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_size(_mainNumberLabel, _width - 20, 28);
-    lv_obj_align(_mainNumberLabel, LV_ALIGN_BOTTOM_RIGHT, -10, -2);
+    lv_obj_set_size(_mainNumberLabel, _width - 30, 35);
+    lv_obj_align(_mainNumberLabel, LV_ALIGN_BOTTOM_RIGHT, -15, -25);
     
-    // 表达式显示 - 小字体，右对齐，在主数字上方
+    // 表达式显示 - 小字体，显示当前运算表达式
     _expressionLabel = lv_label_create(displayPanel);
     lv_label_set_text(_expressionLabel, "");
+    lv_obj_set_style_text_color(_expressionLabel, lv_color_hex(0x888888), 0);  // 灰色
+    lv_obj_set_style_text_font(_expressionLabel, LV_FONT_DEFAULT, 0);
     lv_obj_set_style_text_align(_expressionLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_size(_expressionLabel, _width - 20, 16);
-    lv_obj_align(_expressionLabel, LV_ALIGN_TOP_RIGHT, -10, 4);
+    lv_obj_set_size(_expressionLabel, _width - 30, 20);
+    lv_obj_align(_expressionLabel, LV_ALIGN_TOP_RIGHT, -15, 15);
     
-    // ================ 中部功能区域 ================
-    // 创建功能栏 (高度20px)
-    lv_obj_t* statusBar = lv_obj_create(_mainContainer);
-    lv_obj_set_size(statusBar, _width, 20);
-    lv_obj_align_to(statusBar, displayPanel, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);
-    lv_obj_set_style_bg_color(statusBar, lv_color_hex(0x2A2A2A), 0);
-    lv_obj_set_style_border_width(statusBar, 0, 0);
-    lv_obj_set_style_radius(statusBar, 4, 0);
-    lv_obj_clear_flag(statusBar, LV_OBJ_FLAG_SCROLLABLE);
-    
-    // 状态指示器 - 左侧
-    _statusLabel = lv_label_create(statusBar);
-    lv_label_set_text(_statusLabel, "Ready");
-    lv_obj_set_style_text_align(_statusLabel, LV_TEXT_ALIGN_LEFT, 0);
-    lv_obj_align(_statusLabel, LV_ALIGN_LEFT_MID, 8, 0);
-    
-    // 模式指示器 - 中央
-    _modeLabel = lv_label_create(statusBar);
-    lv_label_set_text(_modeLabel, "Basic Mode");
-    lv_obj_set_style_text_align(_modeLabel, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(_modeLabel, LV_ALIGN_CENTER, 0, 0);
-    
-    // 电池指示器占位 - 右侧
-    lv_obj_t* batteryLabel = lv_label_create(statusBar);
-    lv_label_set_text(batteryLabel, "🔋100%");
-    lv_obj_set_style_text_align(batteryLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_align(batteryLabel, LV_ALIGN_RIGHT_MID, -8, 0);
-    
-    // ================ 下部内容区域 ================
-    // 创建内容面板 (剩余空间)
-    lv_obj_t* contentPanel = lv_obj_create(_mainContainer);
-    lv_obj_set_size(contentPanel, _width, 50);
-    lv_obj_align_to(contentPanel, statusBar, LV_ALIGN_OUT_BOTTOM_MID, 0, 2);
-    lv_obj_set_style_bg_color(contentPanel, lv_color_hex(0x0A0A0A), 0);
-    lv_obj_set_style_border_width(contentPanel, 1, 0);
-    lv_obj_set_style_border_color(contentPanel, lv_color_hex(0x303030), 0);
-    lv_obj_set_style_radius(contentPanel, 8, 0);
-    lv_obj_clear_flag(contentPanel, LV_OBJ_FLAG_SCROLLABLE);
-    
-    // ================ 左侧：历史记录 ================
-    _historyContainer = lv_obj_create(contentPanel);
-    lv_obj_set_size(_historyContainer, 160, 46);
-    lv_obj_align(_historyContainer, LV_ALIGN_LEFT_MID, 2, 0);
-    lv_obj_set_style_bg_color(_historyContainer, lv_color_hex(0x151515), 0);
-    lv_obj_set_style_border_width(_historyContainer, 1, 0);
-    lv_obj_set_style_border_color(_historyContainer, lv_color_hex(0x404040), 0);
-    lv_obj_set_style_radius(_historyContainer, 6, 0);
-    lv_obj_clear_flag(_historyContainer, LV_OBJ_FLAG_SCROLLABLE);
-    
-    // 历史记录标题
-    lv_obj_t* historyTitle = lv_label_create(_historyContainer);
-    lv_label_set_text(historyTitle, "History");
-    lv_obj_set_style_text_color(historyTitle, lv_color_hex(0x888888), 0);
-    lv_obj_set_style_text_font(historyTitle, LV_FONT_DEFAULT, 0);
-    lv_obj_align(historyTitle, LV_ALIGN_TOP_LEFT, 4, 2);
-    
-    // ================ 中部：按键布局预览 ================
-    lv_obj_t* keypadPreview = lv_obj_create(contentPanel);
-    lv_obj_set_size(keypadPreview, 160, 46);
-    lv_obj_align(keypadPreview, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_bg_color(keypadPreview, lv_color_hex(0x151515), 0);
-    lv_obj_set_style_border_width(keypadPreview, 1, 0);
-    lv_obj_set_style_border_color(keypadPreview, lv_color_hex(0x404040), 0);
-    lv_obj_set_style_radius(keypadPreview, 6, 0);
-    lv_obj_clear_flag(keypadPreview, LV_OBJ_FLAG_SCROLLABLE);
-    
-    // 按键布局标题
-    lv_obj_t* keypadTitle = lv_label_create(keypadPreview);
-    lv_label_set_text(keypadTitle, "Keypad (22 keys)");
-    lv_obj_set_style_text_color(keypadTitle, lv_color_hex(0x888888), 0);
-    lv_obj_set_style_text_font(keypadTitle, LV_FONT_DEFAULT, 0);
-    lv_obj_align(keypadTitle, LV_ALIGN_TOP_LEFT, 4, 2);
-    
-    // 按键网格预览
-    const char* keyLabels[] = {"C", "⌫", "%", "÷", "7", "8", "9", "×", "4", "5", "6", "-", "1", "2", "3", "+", "0", ".", "="};
-    for(int i = 0; i < 19; i++) {
-        lv_obj_t* miniKey = lv_obj_create(keypadPreview);
-        lv_obj_set_size(miniKey, 12, 8);
-        lv_obj_set_pos(miniKey, 8 + (i % 5) * 14, 16 + (i / 5) * 10);
-        lv_obj_set_style_bg_color(miniKey, lv_color_hex(0x333333), 0);
-        lv_obj_set_style_border_width(miniKey, 0, 0);
-        lv_obj_set_style_radius(miniKey, 2, 0);
-        lv_obj_clear_flag(miniKey, LV_OBJ_FLAG_SCROLLABLE);
-        
-        // 迷你按键标签
-        lv_obj_t* miniLabel = lv_label_create(miniKey);
-        lv_label_set_text(miniLabel, keyLabels[i]);
-        lv_obj_set_style_text_color(miniLabel, lv_color_hex(0xCCCCCC), 0);
-        lv_obj_center(miniLabel);
-    }
-    
-    // ================ 右侧：单位显示/系统信息 ================
-    _unitPanel = lv_obj_create(contentPanel);
-    lv_obj_set_size(_unitPanel, 154, 46);
-    lv_obj_align(_unitPanel, LV_ALIGN_RIGHT_MID, -2, 0);
-    lv_obj_set_style_bg_color(_unitPanel, lv_color_hex(0x151515), 0);
-    lv_obj_set_style_border_width(_unitPanel, 1, 0);
-    lv_obj_set_style_border_color(_unitPanel, lv_color_hex(0x404040), 0);
-    lv_obj_set_style_radius(_unitPanel, 6, 0);
-    lv_obj_clear_flag(_unitPanel, LV_OBJ_FLAG_SCROLLABLE);
-    
-    // 单位显示标题
-    lv_obj_t* unitTitle = lv_label_create(_unitPanel);
-    lv_label_set_text(unitTitle, "Unit Display");
-    lv_obj_set_style_text_color(unitTitle, lv_color_hex(0x888888), 0);
-    lv_obj_set_style_text_font(unitTitle, LV_FONT_DEFAULT, 0);
-    lv_obj_align(unitTitle, LV_ALIGN_TOP_LEFT, 4, 2);
-    
-    // ================ 错误提示面板 ================
-    _errorPanel = lv_obj_create(_mainContainer);
+    // 错误提示面板 - 数码管风格错误显示
+    _errorPanel = lv_obj_create(_screen);
     lv_obj_set_size(_errorPanel, _width - 40, 40);
     lv_obj_align(_errorPanel, LV_ALIGN_CENTER, 0, 0);
     lv_obj_add_flag(_errorPanel, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_style_bg_color(_errorPanel, lv_color_hex(0xFF4444), 0);
-    lv_obj_set_style_border_width(_errorPanel, 2, 0);
+    lv_obj_set_style_bg_color(_errorPanel, lv_color_hex(0xFF0000), 0);  // 红色背景
+    lv_obj_set_style_border_width(_errorPanel, 1, 0);
     lv_obj_set_style_border_color(_errorPanel, lv_color_hex(0xFFFFFF), 0);
-    lv_obj_set_style_radius(_errorPanel, 8, 0);
-    lv_obj_set_style_shadow_width(_errorPanel, 10, 0);
-    lv_obj_set_style_shadow_color(_errorPanel, lv_color_hex(0xFF0000), 0);
+    lv_obj_set_style_radius(_errorPanel, 5, 0);
+    lv_obj_clear_flag(_errorPanel, LV_OBJ_FLAG_SCROLLABLE);
     
-    LVGL_LOG_D("现代化计算器UI组件创建完成");
+    // 清空不需要的成员变量
+    _statusLabel = nullptr;
+    _modeLabel = nullptr;
+    _unitPanel = nullptr;
+    
+    LVGL_LOG_D("数码管风格计算器UI创建完成");
 }
 
 void LVGLDisplay::initStyles() {
@@ -372,9 +263,10 @@ void LVGLDisplay::initStyles() {
 }
 
 void LVGLDisplay::applyTheme() {
-    // 应用主样式到容器和屏幕
-    lv_obj_add_style(_mainContainer, &_mainStyle, 0);
-    lv_obj_add_style(_screen, &_mainStyle, 0);
+    // 应用主样式到屏幕
+    if (_screen) {
+        lv_obj_add_style(_screen, &_mainStyle, 0);
+    }
     
     // 应用样式到各个组件
     if (_mainNumberLabel) {
@@ -383,14 +275,9 @@ void LVGLDisplay::applyTheme() {
     if (_expressionLabel) {
         lv_obj_add_style(_expressionLabel, &_expressionStyle, 0);
     }
-    if (_statusLabel) {
-        lv_obj_add_style(_statusLabel, &_statusStyle, 0);
-    }
-    if (_modeLabel) {
-        lv_obj_add_style(_modeLabel, &_statusStyle, 0);
-    }
+    // 不再使用的组件已被移除
     
-    LVGL_LOG_D("现代化主题应用完成");
+    LVGL_LOG_D("数码管主题应用完成");
 }
 
 void LVGLDisplay::layoutUI() {
@@ -405,9 +292,6 @@ void LVGLDisplay::clear() {
     if (_expressionLabel) {
         lv_label_set_text(_expressionLabel, "");
     }
-    if (_historyContainer) {
-        lv_obj_clean(_historyContainer);
-    }
     hideErrorPanel();
     
     LVGL_LOG_D("显示已清除");
@@ -415,19 +299,11 @@ void LVGLDisplay::clear() {
 
 void LVGLDisplay::updateDisplay(const String& number, 
                                const String& expression,
-                               const std::vector<CalculationHistory>& history,
                                CalculatorState state) {
     updateMainNumber(number);
     updateExpression(expression);
-    updateHistory(history);
-    updateStatusBar(state);
     
-    // 如果启用了单位显示，更新单位标识
-    if (_unitDisplay.enabled && !number.isEmpty() && number != "0") {
-        updateUnitLabels(number);
-    } else if (_unitPanel) {
-        lv_obj_add_flag(_unitPanel, LV_OBJ_FLAG_HIDDEN);
-    }
+    LVGL_LOG_V("显示更新完成: 数字=%s, 表达式=%s", number.c_str(), expression.c_str());
 }
 
 void LVGLDisplay::updateMainNumber(const String& number) {
@@ -455,119 +331,7 @@ void LVGLDisplay::updateExpression(const String& expression) {
     LVGL_LOG_V("表达式更新: %s", expression.c_str());
 }
 
-void LVGLDisplay::updateHistory(const std::vector<CalculationHistory>& history) {
-    if (!_historyContainer) return;
-    
-    // 清空现有历史内容（保留标题）
-    lv_obj_t* child = lv_obj_get_child(_historyContainer, 0);
-    while(lv_obj_get_child(_historyContainer, 1) != NULL) {
-        lv_obj_del(lv_obj_get_child(_historyContainer, 1));
-    }
-    
-    // 重新创建标题（如果被意外删除）
-    if (lv_obj_get_child_cnt(_historyContainer) == 0) {
-        lv_obj_t* historyTitle = lv_label_create(_historyContainer);
-        lv_label_set_text(historyTitle, "History");
-        lv_obj_set_style_text_color(historyTitle, lv_color_hex(0x888888), 0);
-        lv_obj_set_style_text_font(historyTitle, LV_FONT_DEFAULT, 0);
-        lv_obj_align(historyTitle, LV_ALIGN_TOP_LEFT, 4, 2);
-    }
-    
-    // 显示最近的2-3条历史记录（适应新布局）
-    int count = 0;
-    int startY = 16;  // 在标题下方开始
-    for (auto it = history.rbegin(); it != history.rend() && count < 2; ++it, ++count) {
-        lv_obj_t* historyLabel = lv_label_create(_historyContainer);
-        
-        // 缩短表达式显示，适应更小的区域
-        String historyText = it->expression + "=" + it->result;
-        if (historyText.length() > 18) {
-            historyText = historyText.substring(0, 15) + "...";
-        }
-        lv_label_set_text(historyLabel, historyText.c_str());
-        
-        lv_obj_set_style_text_font(historyLabel, LV_FONT_DEFAULT, 0);
-        lv_obj_set_style_text_color(historyLabel, lv_color_hex(0x666666), 0);
-        
-        lv_obj_set_size(historyLabel, 150, 12);
-        lv_obj_align(historyLabel, LV_ALIGN_TOP_LEFT, 4, startY + count * 14);
-    }
-    
-    LVGL_LOG_V("历史记录更新: %d条", count);
-}
 
-void LVGLDisplay::updateStatusBar(CalculatorState state) {
-    if (!_statusLabel) return;
-    
-    String statusText = getStateText(state);
-    lv_label_set_text(_statusLabel, statusText.c_str());
-    
-    LVGL_LOG_V("状态更新: %s", statusText.c_str());
-}
-
-void LVGLDisplay::updateUnitLabels(const String& number) {
-    if (!_unitPanel) return;
-    
-    // 清空单位面板内容（保留标题）
-    lv_obj_t* child = lv_obj_get_child(_unitPanel, 0);
-    while(lv_obj_get_child(_unitPanel, 1) != NULL) {
-        lv_obj_del(lv_obj_get_child(_unitPanel, 1));
-    }
-    
-    // 重新创建标题（如果被意外删除）
-    if (lv_obj_get_child_cnt(_unitPanel) == 0) {
-        lv_obj_t* unitTitle = lv_label_create(_unitPanel);
-        lv_label_set_text(unitTitle, "Unit Display");
-        lv_obj_set_style_text_color(unitTitle, lv_color_hex(0x888888), 0);
-        lv_obj_set_style_text_font(unitTitle, LV_FONT_DEFAULT, 0);
-        lv_obj_align(unitTitle, LV_ALIGN_TOP_LEFT, 4, 2);
-    }
-    
-    // 如果启用单位显示且数字不为零
-    if (_unitDisplay.enabled && !number.isEmpty() && number != "0") {
-        double value = number.toDouble();
-        if (value != 0) {
-            // 创建单位标签
-            int yOffset = 16;
-            int displayCount = 0;
-            
-            for (int i = _unitDisplay.unitValues.size() - 1; i >= 0 && displayCount < 2; i--) {
-                uint32_t unitValue = _unitDisplay.unitValues[i];
-                int unitCount = (int)(value / unitValue);
-                value = fmod(value, unitValue);
-                
-                if (unitCount > 0 && i < _unitDisplay.unitLabels.size()) {
-                    lv_obj_t* unitLabel = lv_label_create(_unitPanel);
-                    
-                    String unitText = String(unitCount) + " " + _unitDisplay.unitLabels[i];
-                    lv_label_set_text(unitLabel, unitText.c_str());
-                    
-                    lv_obj_add_style(unitLabel, &_unitStyle, 0);
-                    lv_obj_set_size(unitLabel, 145, 12);
-                    lv_obj_align(unitLabel, LV_ALIGN_TOP_LEFT, 4, yOffset);
-                    
-                    yOffset += 14;
-                    displayCount++;
-                }
-            }
-        }
-    } else {
-        // 显示系统信息
-        lv_obj_t* infoLabel = lv_label_create(_unitPanel);
-        lv_label_set_text(infoLabel, "480x128 LVGL");
-        lv_obj_set_style_text_color(infoLabel, lv_color_hex(0x666666), 0);
-        lv_obj_set_size(infoLabel, 145, 12);
-        lv_obj_align(infoLabel, LV_ALIGN_TOP_LEFT, 4, 16);
-        
-        lv_obj_t* modeLabel = lv_label_create(_unitPanel);
-        lv_label_set_text(modeLabel, "ESP32-S3");
-        lv_obj_set_style_text_color(modeLabel, lv_color_hex(0x666666), 0);
-        lv_obj_set_size(modeLabel, 145, 12);
-        lv_obj_align(modeLabel, LV_ALIGN_TOP_LEFT, 4, 30);
-    }
-    
-    LVGL_LOG_V("单位/信息面板更新完成");
-}
 
 void LVGLDisplay::showError(CalculatorError error, const String& message) {
     if (!_errorPanel) return;

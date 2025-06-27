@@ -123,8 +123,7 @@ bool BasicMode::handleKeyInput(uint8_t keyPosition, bool isLongPress, bool isSec
 
 void BasicMode::updateDisplay() {
     if (_display) {
-        std::vector<CalculationHistory> emptyHistory;
-        _display->updateDisplay(_currentInput, _currentExpression, emptyHistory, CalculatorState::INPUT_NUMBER);
+        _display->updateDisplay(_currentInput, _currentExpression, CalculatorState::INPUT_NUMBER);
     }
 }
 
@@ -287,9 +286,8 @@ bool FinancialMode::handleKeyInput(uint8_t keyPosition, bool isLongPress, bool i
 
 void FinancialMode::updateDisplay() {
     if (_display) {
-        std::vector<CalculationHistory> emptyHistory;
         String info = "财务模式 " + _currencySymbol;
-        _display->updateDisplay("0.00", info, emptyHistory, CalculatorState::INPUT_NUMBER);
+        _display->updateDisplay("0.00", info, CalculatorState::INPUT_NUMBER);
     }
 }
 

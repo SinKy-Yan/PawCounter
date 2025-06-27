@@ -7,7 +7,6 @@
  * - 双重显示输出（LCD + 串口）
  * - 多行显示布局管理
  * - 数字格式化和单位显示
- * - 历史记录滚动显示
  * - 状态指示器
  * - 可配置的显示主题
  * 
@@ -31,7 +30,6 @@
 enum class DisplayArea {
     MAIN_DISPLAY = 0,       ///< 主显示区域（当前数字/结果）
     EXPRESSION,             ///< 表达式显示区域
-    HISTORY,                ///< 历史记录区域
     STATUS,                 ///< 状态栏区域
     MODE_INDICATOR,         ///< 模式指示器
     MEMORY_INDICATOR,       ///< 内存指示器
@@ -117,12 +115,10 @@ public:
      * @brief 更新显示内容
      * @param number 当前数字
      * @param expression 当前表达式
-     * @param history 历史记录
      * @param state 计算器状态
      */
     virtual void updateDisplay(const String& number, 
                               const String& expression,
-                              const std::vector<CalculationHistory>& history,
                               CalculatorState state) = 0;
     
     /**
@@ -178,7 +174,6 @@ public:
     void clear() override;
     void updateDisplay(const String& number, 
                       const String& expression,
-                      const std::vector<CalculationHistory>& history,
                       CalculatorState state) override;
     void showError(CalculatorError error, const String& message) override;
     void showStatus(const String& message) override;
@@ -288,7 +283,6 @@ public:
     void clear() override;
     void updateDisplay(const String& number, 
                       const String& expression,
-                      const std::vector<CalculationHistory>& history,
                       CalculatorState state) override;
     void showError(CalculatorError error, const String& message) override;
     void showStatus(const String& message) override;
@@ -355,7 +349,6 @@ public:
     void clear() override;
     void updateDisplay(const String& number, 
                       const String& expression,
-                      const std::vector<CalculationHistory>& history,
                       CalculatorState state) override;
     void showError(CalculatorError error, const String& message) override;
     void showStatus(const String& message) override;

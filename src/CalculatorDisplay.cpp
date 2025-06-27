@@ -46,7 +46,6 @@ void LCDDisplay::clear() {
 
 void LCDDisplay::updateDisplay(const String& number, 
                               const String& expression,
-                              const std::vector<CalculationHistory>& history,
                               CalculatorState state) {
     
     if (!_gfx) return;
@@ -295,7 +294,6 @@ void SerialDisplay::clear() {
 
 void SerialDisplay::updateDisplay(const String& number, 
                                  const String& expression,
-                                 const std::vector<CalculationHistory>& history,
                                  CalculatorState state) {
     
     // 避免频繁刷新相同内容
@@ -340,18 +338,6 @@ void SerialDisplay::updateDisplay(const String& number,
     }
     printColorText(stateStr, ANSIColors::ANSI_YELLOW);
     
-    // 显示最近的历史记录
-    if (!history.empty()) {
-        Serial.println();
-        printColorText("Recent calculations:", ANSIColors::ANSI_MAGENTA);
-        int showCount = min(3, (int)history.size());
-        for (int i = history.size() - showCount; i < history.size(); i++) {
-            Serial.print("  ");
-            Serial.print(history[i].expression);
-            Serial.print(" = ");
-            Serial.println(history[i].result, 6);
-        }
-    }
     
     printSeparator(50, '-');
     
@@ -467,15 +453,14 @@ void DualDisplay::clear() {
 
 void DualDisplay::updateDisplay(const String& number, 
                                const String& expression,
-                               const std::vector<CalculationHistory>& history,
                                CalculatorState state) {
     
     if (_lcdDisplay) {
-        _lcdDisplay->updateDisplay(number, expression, history, state);
+        _lcdDisplay->updateDisplay(number, expression, state);
     }
     
     if (_serialDisplay) {
-        _serialDisplay->updateDisplay(number, expression, history, state);
+        _serialDisplay->updateDisplay(number, expression, state);
     }
 }
 

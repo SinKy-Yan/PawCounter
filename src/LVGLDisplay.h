@@ -49,7 +49,6 @@ public:
     void clear() override;
     void updateDisplay(const String& number, 
                       const String& expression,
-                      const std::vector<CalculationHistory>& history,
                       CalculatorState state) override;
     void showError(CalculatorError error, const String& message) override;
     void showStatus(const String& message) override;
@@ -95,7 +94,6 @@ private:
     lv_obj_t* _expressionLabel;         ///< 表达式标签
     lv_obj_t* _statusLabel;             ///< 状态标签
     lv_obj_t* _modeLabel;               ///< 模式标签
-    lv_obj_t* _historyContainer;        ///< 历史记录容器
     lv_obj_t* _errorPanel;              ///< 错误面板
     lv_obj_t* _unitPanel;               ///< 单位显示面板
     
@@ -158,11 +156,6 @@ private:
      */
     void updateExpression(const String& expression);
     
-    /**
-     * @brief 更新历史记录显示
-     * @param history 历史记录
-     */
-    void updateHistory(const std::vector<CalculationHistory>& history);
     
     /**
      * @brief 更新状态栏
