@@ -150,6 +150,14 @@ void setup() {
     calculator = std::make_shared<CalculatorCore>();
     calculator->setDisplay(display);
     calculator->setCalculationEngine(engine);
+    
+    // 设置LCD显示器的计算器核心引用（用于获取历史记录）
+    // 由于我们知道display是DualDisplay类型，可以直接静态转换
+    if (auto dualDisplay = std::static_pointer_cast<DualDisplay>(display)) {
+        dualDisplay->setCalculatorCore(calculator.get());
+        Serial.println("  - 已设置显示器的计算器核心引用");
+    }
+    
     if (!calculator->begin()) {
         LOG_E(TAG_MAIN, "计算器核心初始化失败");
         Serial.println("❌ 计算器核心初始化失败");

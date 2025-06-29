@@ -10,7 +10,7 @@
 // =================== 功能开关 ===================
 #define DEBUG_MODE                      // 启用调试模式
 // #define ENABLE_BATTERY_MANAGER       // 启用电池管理（调试时可注释）
-#define ENABLE_LVGL_UI                  // 启用LVGL界面（注释掉使用Arduino_GFX）
+// #define ENABLE_LVGL_UI                  // 启用LVGL界面（注释掉使用Arduino_GFX）
 
 // =================== LCD 引脚定义 ===================
 #define LCD_RST   48

@@ -8,7 +8,7 @@
 
 #include "LVGLDisplay.h"
 #include "config.h"
-// #include "fonts/lv_font_zpix.h"  // 暂时注释 ZPIX 字体
+// 使用LVGL内置Montserrat字体
 
 // 静态成员初始化
 lv_disp_draw_buf_t LVGLDisplay::_drawBuf;
@@ -187,16 +187,16 @@ void LVGLDisplay::createUI() {
     _mainNumberLabel = lv_label_create(displayPanel);
     lv_label_set_text(_mainNumberLabel, "0");
     lv_obj_set_style_text_color(_mainNumberLabel, lv_color_hex(0x00FF00), 0);  // 绿色数码管效果
-    lv_obj_set_style_text_font(_mainNumberLabel, LV_FONT_DEFAULT, 0);   // 暂时使用默认字体
+    // 字体将在applyTheme()中设置
     lv_obj_set_style_text_align(_mainNumberLabel, LV_TEXT_ALIGN_RIGHT, 0);
-    lv_obj_set_size(_mainNumberLabel, _width - 30, 35);
-    lv_obj_align(_mainNumberLabel, LV_ALIGN_BOTTOM_RIGHT, -15, -25);
+    lv_obj_set_size(_mainNumberLabel, _width - 30, 60);  // 适应48px大字体，高度增加
+    lv_obj_align(_mainNumberLabel, LV_ALIGN_BOTTOM_RIGHT, -15, -5);  // 调整位置适应大字体
     
     // 表达式显示 - 小字体，显示当前运算表达式
     _expressionLabel = lv_label_create(displayPanel);
     lv_label_set_text(_expressionLabel, "");
     lv_obj_set_style_text_color(_expressionLabel, lv_color_hex(0x888888), 0);  // 灰色
-    lv_obj_set_style_text_font(_expressionLabel, LV_FONT_DEFAULT, 0);  // 暂时使用默认字体
+    // 字体将在applyTheme()中设置
     lv_obj_set_style_text_align(_expressionLabel, LV_TEXT_ALIGN_RIGHT, 0);
     lv_obj_set_size(_expressionLabel, _width - 30, 20);
     lv_obj_align(_expressionLabel, LV_ALIGN_TOP_RIGHT, -15, 15);
@@ -234,22 +234,22 @@ void LVGLDisplay::initStyles() {
     // 初始化主数字样式 - 大字体，高亮度
     lv_style_init(&_numberStyle);
     lv_style_set_text_color(&_numberStyle, lv_color_hex(0xFFFFFF));  // 纯白色
-    lv_style_set_text_font(&_numberStyle, LV_FONT_DEFAULT);  // 暂时使用默认字体
+    lv_style_set_text_font(&_numberStyle, &lv_font_montserrat_48);  // 48px大字体用于主数字
     
     // 初始化表达式样式 - 中等字体，较淡颜色
     lv_style_init(&_expressionStyle);
     lv_style_set_text_color(&_expressionStyle, lv_color_hex(0xAAAAA));  // 浅灰色
-    lv_style_set_text_font(&_expressionStyle, LV_FONT_DEFAULT);  // 暂时使用默认字体
+    lv_style_set_text_font(&_expressionStyle, LV_FONT_DEFAULT);  // 默认字体
     
     // 初始化状态样式 - 绿色指示器
     lv_style_init(&_statusStyle);
     lv_style_set_text_color(&_statusStyle, lv_color_hex(0x00DD00));  // 明亮绿色
-    lv_style_set_text_font(&_statusStyle, LV_FONT_DEFAULT);   // 暂时使用默认字体
+    lv_style_set_text_font(&_statusStyle, LV_FONT_DEFAULT);   // 默认字体
     
     // 初始化错误样式 - 红色警告
     lv_style_init(&_errorStyle);
     lv_style_set_text_color(&_errorStyle, lv_color_white());
-    lv_style_set_text_font(&_errorStyle, LV_FONT_DEFAULT);    // 暂时使用默认字体
+    lv_style_set_text_font(&_errorStyle, LV_FONT_DEFAULT);    // 默认字体
     lv_style_set_bg_color(&_errorStyle, lv_color_hex(0xFF4444));
     lv_style_set_radius(&_errorStyle, 8);
     lv_style_set_border_width(&_errorStyle, 2);
@@ -258,7 +258,7 @@ void LVGLDisplay::initStyles() {
     // 初始化单位样式 - 金色数字
     lv_style_init(&_unitStyle);
     lv_style_set_text_color(&_unitStyle, lv_color_hex(0xFFCC00));  // 金黄色
-    lv_style_set_text_font(&_unitStyle, LV_FONT_DEFAULT);     // 暂时使用默认字体
+    lv_style_set_text_font(&_unitStyle, LV_FONT_DEFAULT);     // 默认字体
     
     LVGL_LOG_D("现代化UI样式初始化完成");
 }
@@ -272,9 +272,15 @@ void LVGLDisplay::applyTheme() {
     // 应用样式到各个组件
     if (_mainNumberLabel) {
         lv_obj_add_style(_mainNumberLabel, &_numberStyle, 0);
+        // 强制设置字体以确保应用
+        lv_obj_set_style_text_font(_mainNumberLabel, &lv_font_montserrat_48, 0);
+        LVGL_LOG_I("主数字标签已应用48px大字体");
     }
     if (_expressionLabel) {
         lv_obj_add_style(_expressionLabel, &_expressionStyle, 0);
+        // 强制设置字体以确保应用
+        lv_obj_set_style_text_font(_expressionLabel, LV_FONT_DEFAULT, 0);
+        LVGL_LOG_I("表达式标签已应用默认字体");
     }
     // 不再使用的组件已被移除
     

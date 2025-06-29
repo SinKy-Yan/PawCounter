@@ -19,7 +19,8 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(sed:*)",
       "Bash(/mnt/c/.platformio/penv/Scripts/pio.exe run --silent)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(python test_zpix_font.py:*)"
     ],
     "deny": []
   }

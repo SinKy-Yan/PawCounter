@@ -21,6 +21,7 @@
 #include <Arduino.h>
 #include <Arduino_GFX_Library.h>
 #include <vector>
+#include <memory>
 #include "Logger.h"
 #include "CalculatorCore.h"
 
@@ -165,6 +166,12 @@ public:
     explicit LCDDisplay(Arduino_GFX* gfx);
     
     /**
+     * @brief 设置计算器核心引用（用于获取历史记录）
+     * @param core 计算器核心指针
+     */
+    void setCalculatorCore(CalculatorCore* core);
+    
+    /**
      * @brief 析构函数
      */
     ~LCDDisplay() override = default;
@@ -183,6 +190,7 @@ public:
 
 private:
     Arduino_GFX* _gfx;                  ///< 显示对象
+    CalculatorCore* _calculatorCore;    ///< 计算器核心引用
     DisplayTheme _theme;                ///< 当前主题
     NumberFormat _numberFormat;         ///< 数字格式
     UnitDisplay _unitDisplay;           ///< 单位显示配置
@@ -249,6 +257,68 @@ private:
      * @return 格式化后的字符串
      */
     String formatDisplayNumber(const String& number);
+    
+    /**
+     * @brief 计算动态布局并绘制所有内容
+     * @param number 当前数字
+     * @param expression 当前表达式
+     * @param state 计算器状态
+     */
+    void calculateDynamicLayout(const String& number, 
+                               const String& expression,
+                               CalculatorState state);
+    
+    /**
+     * @brief 计算文本显示宽度（基于5x7字体）
+     * @param text 文本内容
+     * @param textSize 字体缩放倍数
+     * @return 显示宽度（像素）
+     */
+    uint16_t calculateTextWidth(const String& text, uint8_t textSize);
+    
+    /**
+     * @brief 计算文本显示高度（基于5x7字体）
+     * @param textSize 字体缩放倍数
+     * @return 显示高度（像素）
+     */
+    uint16_t calculateTextHeight(uint8_t textSize);
+    
+    /**
+     * @brief 180度坐标翻转
+     * @param x 原始X坐标
+     * @param y 原始Y坐标
+     * @param flippedX 翻转后X坐标
+     * @param flippedY 翻转后Y坐标
+     */
+    void flipCoordinates180(uint16_t x, uint16_t y, uint16_t& flippedX, uint16_t& flippedY);
+    
+    /**
+     * @brief 绘制历史记录滚动区域
+     * @param x X坐标
+     * @param y Y坐标
+     * @param width 宽度
+     * @param height 高度
+     */
+    void drawScrollingHistory(uint16_t x, uint16_t y, uint16_t width, uint16_t height);
+    
+    /**
+     * @brief 在指定位置绘制主数字
+     * @param number 数字字符串
+     * @param x X坐标
+     * @param y Y坐标
+     * @param fontSize 字体大小
+     */
+    void drawMainNumberAt(const String& number, uint16_t x, uint16_t y, uint8_t fontSize);
+    
+    /**
+     * @brief 在指定位置绘制表达式
+     * @param expression 表达式字符串
+     * @param x X坐标
+     * @param y Y坐标
+     * @param width 宽度
+     * @param height 高度
+     */
+    void drawExpressionAt(const String& expression, uint16_t x, uint16_t y, uint16_t width, uint16_t height);
     
     /**
      * @brief 获取默认主题
@@ -355,6 +425,12 @@ public:
     void setTheme(const DisplayTheme& theme) override;
     void setNumberFormat(const NumberFormat& format) override;
     void setUnitDisplay(const UnitDisplay& unitDisplay) override;
+    
+    /**
+     * @brief 设置计算器核心引用（传递给LCD显示器）
+     * @param core 计算器核心指针
+     */
+    void setCalculatorCore(CalculatorCore* core);
 
 private:
     std::shared_ptr<LCDDisplay> _lcdDisplay;        ///< LCD显示管理器

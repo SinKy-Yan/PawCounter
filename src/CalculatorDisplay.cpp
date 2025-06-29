@@ -14,6 +14,7 @@
 
 LCDDisplay::LCDDisplay(Arduino_GFX* gfx) 
     : _gfx(gfx)
+    , _calculatorCore(nullptr)
     , _displayWidth(DISPLAY_WIDTH)
     , _displayHeight(DISPLAY_HEIGHT) {
     
@@ -53,22 +54,8 @@ void LCDDisplay::updateDisplay(const String& number,
     // 清屏
     _gfx->fillScreen(_theme.backgroundColor);
     
-    // 显示主数字
-    _gfx->setTextColor(_theme.resultColor);
-    _gfx->setTextSize(_theme.mainFontSize);
-    _gfx->setCursor(10, 20);
-    
-    // 格式化并显示数字
-    String formattedNumber = formatDisplayNumber(number);
-    _gfx->print(formattedNumber);
-    
-    // 如果有表达式，也显示
-    if (!expression.isEmpty()) {
-        _gfx->setTextColor(_theme.expressionColor);
-        _gfx->setTextSize(_theme.expressionFontSize);
-        _gfx->setCursor(10, 60);
-        _gfx->print(expression);
-    }
+    // 动态布局计算
+    calculateDynamicLayout(number, expression, state);
     
     DISPLAY_LOG_V("LCD display updated");
 }
@@ -257,6 +244,167 @@ NumberFormat LCDDisplay::getDefaultNumberFormat() {
     format.thousandsSeparator = ",";
     format.decimalSeparator = ".";
     return format;
+}
+
+void LCDDisplay::setCalculatorCore(CalculatorCore* core) {
+    _calculatorCore = core;
+    DISPLAY_LOG_I("Calculator core reference set");
+}
+
+void LCDDisplay::calculateDynamicLayout(const String& number, 
+                                       const String& expression,
+                                       CalculatorState state) {
+    if (!_gfx) return;
+    
+    // 基于5x7字体的动态布局计算
+    const uint16_t margin = 10;
+    const uint16_t lineSpacing = 5;
+    
+    // 历史记录区域（右上角，占屏幕宽度的40%）
+    uint16_t historyWidth = _displayWidth * 0.4;
+    uint16_t historyHeight = 60; // 预留3行历史记录
+    uint16_t historyX = _displayWidth - historyWidth - margin;
+    uint16_t historyY = margin;
+    
+    // 表达式显示区域（右侧，历史记录下方）
+    uint16_t exprWidth = historyWidth;
+    uint16_t exprHeight = calculateTextHeight(_theme.expressionFontSize) + lineSpacing;
+    uint16_t exprX = historyX;
+    uint16_t exprY = historyY + historyHeight + lineSpacing;
+    
+    // 主数字显示区域（左侧，垂直居中）
+    String formattedNumber = formatDisplayNumber(number);
+    uint16_t numberWidth = calculateTextWidth(formattedNumber, _theme.mainFontSize);
+    uint16_t numberHeight = calculateTextHeight(_theme.mainFontSize);
+    uint16_t numberX = margin;
+    uint16_t numberY = (_displayHeight - numberHeight) / 2;
+    
+    // 确保主数字不会超出可用空间
+    uint16_t availableWidth = historyX - margin * 2;
+    if (numberWidth > availableWidth) {
+        // 如果数字太长，调整字体大小
+        uint8_t adjustedFontSize = _theme.mainFontSize;
+        while (adjustedFontSize > 1 && calculateTextWidth(formattedNumber, adjustedFontSize) > availableWidth) {
+            adjustedFontSize--;
+        }
+        numberHeight = calculateTextHeight(adjustedFontSize);
+        numberY = (_displayHeight - numberHeight) / 2;
+        
+        // 绘制调整后的主数字
+        drawMainNumberAt(formattedNumber, numberX, numberY, adjustedFontSize);
+    } else {
+        // 绘制正常大小的主数字
+        drawMainNumberAt(formattedNumber, numberX, numberY, _theme.mainFontSize);
+    }
+    
+    // 绘制表达式
+    if (!expression.isEmpty()) {
+        drawExpressionAt(expression, exprX, exprY, exprWidth, exprHeight);
+    }
+    
+    // 绘制历史记录滚动区域
+    drawScrollingHistory(historyX, historyY, historyWidth, historyHeight);
+    
+    DISPLAY_LOG_V("Dynamic layout calculated and drawn");
+}
+
+uint16_t LCDDisplay::calculateTextWidth(const String& text, uint8_t textSize) {
+    // 基于5x7字体：每个字符宽5像素，字符间距1像素
+    const uint8_t charWidth = 5;
+    const uint8_t charSpacing = 1;
+    
+    if (text.length() == 0) return 0;
+    
+    return (charWidth + charSpacing) * text.length() * textSize;
+}
+
+uint16_t LCDDisplay::calculateTextHeight(uint8_t textSize) {
+    // 基于5x7字体：每个字符高7像素
+    const uint8_t charHeight = 7;
+    return charHeight * textSize;
+}
+
+void LCDDisplay::flipCoordinates180(uint16_t x, uint16_t y, uint16_t& flippedX, uint16_t& flippedY) {
+    // 180度坐标翻转，考虑文本尺寸
+    flippedX = _displayWidth - x - 50;   // 减去文字预估宽度
+    flippedY = _displayHeight - y - 20;   // 减去文字高度
+    
+    // 确保坐标在有效范围内
+    if (flippedX > _displayWidth) flippedX = 10;
+    if (flippedY > _displayHeight) flippedY = 10;
+}
+
+void LCDDisplay::drawScrollingHistory(uint16_t x, uint16_t y, uint16_t width, uint16_t height) {
+    if (!_gfx || !_calculatorCore) return;
+    
+    const auto& history = _calculatorCore->getHistory();
+    if (history.empty()) return;
+    
+    // 历史记录显示配置
+    const uint8_t historyFontSize = 1;  // 小字体显示历史
+    const uint16_t lineHeight = calculateTextHeight(historyFontSize) + 2;
+    const uint8_t maxLines = height / lineHeight;
+    
+    // 显示最新的几条记录
+    int startIndex = max(0, (int)history.size() - maxLines);
+    
+    _gfx->setTextColor(0x4208);  // 灰色显示历史记录
+    _gfx->setTextSize(historyFontSize);
+    
+    for (int i = startIndex; i < history.size(); i++) {
+        uint16_t lineY = y + (i - startIndex) * lineHeight;
+        
+        // 构建历史记录显示字符串（简化）
+        String historyLine = history[i].expression + "=" + String(history[i].result, 2);
+        
+        // 如果太长，截断显示
+        if (calculateTextWidth(historyLine, historyFontSize) > width) {
+            while (historyLine.length() > 5 && calculateTextWidth(historyLine, historyFontSize) > width) {
+                historyLine = historyLine.substring(0, historyLine.length() - 1);
+            }
+            historyLine += "...";
+        }
+        
+        // 应用180度翻转（如果需要）
+        uint16_t displayX = x;
+        uint16_t displayY = lineY;
+        
+        _gfx->setCursor(displayX, displayY);
+        _gfx->print(historyLine);
+    }
+}
+
+void LCDDisplay::drawMainNumberAt(const String& number, uint16_t x, uint16_t y, uint8_t fontSize) {
+    if (!_gfx) return;
+    
+    _gfx->setTextColor(_theme.resultColor);
+    _gfx->setTextSize(fontSize);
+    
+    // 应用180度翻转坐标（如果需要）
+    uint16_t displayX = x;
+    uint16_t displayY = y;
+    
+    _gfx->setCursor(displayX, displayY);
+    _gfx->print(number);
+}
+
+void LCDDisplay::drawExpressionAt(const String& expression, uint16_t x, uint16_t y, uint16_t width, uint16_t height) {
+    if (!_gfx || expression.isEmpty()) return;
+    
+    _gfx->setTextColor(_theme.expressionColor);
+    _gfx->setTextSize(_theme.expressionFontSize);
+    
+    // 如果表达式太长，截断显示
+    String displayExpression = expression;
+    if (calculateTextWidth(displayExpression, _theme.expressionFontSize) > width) {
+        while (displayExpression.length() > 5 && calculateTextWidth(displayExpression, _theme.expressionFontSize) > width) {
+            displayExpression = displayExpression.substring(0, displayExpression.length() - 1);
+        }
+        displayExpression += "...";
+    }
+    
+    _gfx->setCursor(x, y);
+    _gfx->print(displayExpression);
 }
 
 
@@ -487,4 +635,11 @@ void DualDisplay::setNumberFormat(const NumberFormat& format) {
 void DualDisplay::setUnitDisplay(const UnitDisplay& unitDisplay) {
     if (_lcdDisplay) _lcdDisplay->setUnitDisplay(unitDisplay);
     if (_serialDisplay) _serialDisplay->setUnitDisplay(unitDisplay);
+}
+
+void DualDisplay::setCalculatorCore(CalculatorCore* core) {
+    if (_lcdDisplay) {
+        _lcdDisplay->setCalculatorCore(core);
+        DISPLAY_LOG_I("Calculator core reference set for LCD display");
+    }
 }
