@@ -8,6 +8,7 @@
 
 #include "LVGLDisplay.h"
 #include "config.h"
+// #include "fonts/lv_font_zpix.h"  // 暂时注释 ZPIX 字体
 
 // 静态成员初始化
 lv_disp_draw_buf_t LVGLDisplay::_drawBuf;
@@ -186,7 +187,7 @@ void LVGLDisplay::createUI() {
     _mainNumberLabel = lv_label_create(displayPanel);
     lv_label_set_text(_mainNumberLabel, "0");
     lv_obj_set_style_text_color(_mainNumberLabel, lv_color_hex(0x00FF00), 0);  // 绿色数码管效果
-    lv_obj_set_style_text_font(_mainNumberLabel, LV_FONT_DEFAULT, 0);   // 默认字体
+    lv_obj_set_style_text_font(_mainNumberLabel, LV_FONT_DEFAULT, 0);   // 暂时使用默认字体
     lv_obj_set_style_text_align(_mainNumberLabel, LV_TEXT_ALIGN_RIGHT, 0);
     lv_obj_set_size(_mainNumberLabel, _width - 30, 35);
     lv_obj_align(_mainNumberLabel, LV_ALIGN_BOTTOM_RIGHT, -15, -25);
@@ -195,7 +196,7 @@ void LVGLDisplay::createUI() {
     _expressionLabel = lv_label_create(displayPanel);
     lv_label_set_text(_expressionLabel, "");
     lv_obj_set_style_text_color(_expressionLabel, lv_color_hex(0x888888), 0);  // 灰色
-    lv_obj_set_style_text_font(_expressionLabel, LV_FONT_DEFAULT, 0);
+    lv_obj_set_style_text_font(_expressionLabel, LV_FONT_DEFAULT, 0);  // 暂时使用默认字体
     lv_obj_set_style_text_align(_expressionLabel, LV_TEXT_ALIGN_RIGHT, 0);
     lv_obj_set_size(_expressionLabel, _width - 30, 20);
     lv_obj_align(_expressionLabel, LV_ALIGN_TOP_RIGHT, -15, 15);

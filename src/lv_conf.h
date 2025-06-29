@@ -3,6 +3,11 @@
 
 #include <stdint.h>
 
+/*ZPIX 自定义字体前向声明 - 暂时注释解决黑屏问题*/
+/*typedef struct _lv_font_t lv_font_t;*/
+/*extern const lv_font_t lv_font_zpix_20;*/
+/*extern const lv_font_t lv_font_zpix_60;*/
+
 /*====================
    Color settings
  *====================*/
@@ -307,13 +312,13 @@
  *https://fonts.google.com/specimen/Montserrat  */
 #define LV_FONT_MONTSERRAT_8  0
 #define LV_FONT_MONTSERRAT_10 0
-#define LV_FONT_MONTSERRAT_12 1
+#define LV_FONT_MONTSERRAT_12 0
 #define LV_FONT_MONTSERRAT_14 1
-#define LV_FONT_MONTSERRAT_16 1
+#define LV_FONT_MONTSERRAT_16 0
 #define LV_FONT_MONTSERRAT_18 0
-#define LV_FONT_MONTSERRAT_20 1
+#define LV_FONT_MONTSERRAT_20 0
 #define LV_FONT_MONTSERRAT_22 0
-#define LV_FONT_MONTSERRAT_24 1
+#define LV_FONT_MONTSERRAT_24 0
 #define LV_FONT_MONTSERRAT_26 0
 #define LV_FONT_MONTSERRAT_28 0
 #define LV_FONT_MONTSERRAT_30 0
@@ -338,6 +343,12 @@
 #define LV_FONT_UNSCII_16 0
 
 /*Optionally declare custom fonts here.*/
+/*在这里声明你的自定义字体，例如：*/
+/*extern const lv_font_t my_custom_font_16;*/
+/*extern const lv_font_t my_custom_font_20;*/
+/*extern const lv_font_t my_custom_font_24;*/
+
+/*ZPIX 自定义字体声明将在独立的头文件中处理*/
 
 /*Always set a default font*/
 #define LV_FONT_DEFAULT &lv_font_montserrat_14
@@ -345,7 +356,7 @@
 /*Enable handling large font and/or fonts with a lot of characters.
  *The limit depends on the font size, font face and bpp.
  *Compiler error will be triggered if a font needs it.*/
-#define LV_FONT_FMT_TXT_LARGE 0
+#define LV_FONT_FMT_TXT_LARGE 1
 
 /*Enables/disables support for compressed fonts.*/
 #define LV_USE_FONT_COMPRESSED 0

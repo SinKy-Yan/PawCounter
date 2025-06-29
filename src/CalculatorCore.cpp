@@ -470,11 +470,30 @@ void CalculatorCore::resetInputState() {
 }
 
 String CalculatorCore::formatNumber(double number) const {
+    // 处理非常小的数字
     if (abs(number) < 0.000001 && number != 0.0) {
         return String(number, 6);  // 科学计数法
-    } else {
-        return String(number, 6);
     }
+    
+    // 检查是否为整数
+    if (number == floor(number) && abs(number) < 1000000) {
+        return String((int)number);  // 整数显示，不带小数点
+    }
+    
+    // 浮点数显示，去除末尾的零
+    String result = String(number, 6);
+    
+    // 移除末尾的零和小数点
+    if (result.indexOf('.') != -1) {
+        while (result.endsWith("0")) {
+            result.remove(result.length() - 1);
+        }
+        if (result.endsWith(".")) {
+            result.remove(result.length() - 1);
+        }
+    }
+    
+    return result;
 }
 
 // ============================================================================
