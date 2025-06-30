@@ -72,6 +72,18 @@ bool CalculatorCore::begin() {
         return false;
     }
     
+    // 验证关键按键配置
+    const KeyConfig* equalsKey = keyboardConfig.getKeyConfig(22, KeyLayer::PRIMARY);
+    if (equalsKey) {
+        CALC_LOG_I("Equals key (22) configured: symbol='%s', type=%d, operation=%d", 
+                   equalsKey->symbol.c_str(), (int)equalsKey->type, (int)equalsKey->operation);
+    } else {
+        CALC_LOG_E("Equals key (22) not found in configuration!");
+    }
+    
+    // 打印配置信息（调试用）
+    keyboardConfig.printConfig();
+    
     // 初始化状态
     _state = CalculatorState::INPUT_NUMBER;
     _currentDisplay = "0";
@@ -91,6 +103,7 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
     
     // 首先检查是否为Tab键（层级切换）
     if (keyPosition == keyboardConfig.getLayoutConfig().tabKeyPosition) {
+        CALC_LOG_D("Tab key detected, delegating to keyboard config");
         return keyboardConfig.handleTabKey(isLongPress);
     }
     
@@ -98,6 +111,7 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
     const KeyConfig* keyConfig = keyboardConfig.getKeyConfig(keyPosition, keyboardConfig.getCurrentLayer());
     if (!keyConfig) {
         // 如果当前层级没有配置，尝试从主层级获取
+        CALC_LOG_D("Key not found in current layer, trying PRIMARY layer");
         keyConfig = keyboardConfig.getKeyConfig(keyPosition, KeyLayer::PRIMARY);
         if (!keyConfig) {
             CALC_LOG_W("No key configuration found for position %d", keyPosition);
@@ -118,6 +132,7 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
     switch (keyConfig->type) {
         case KeyType::NUMBER:
             if (!keyConfig->symbol.isEmpty()) {
+                CALC_LOG_D("Processing NUMBER key: position=%d, symbol='%s'", keyPosition, keyConfig->symbol.c_str());
                 handleDigitInput(keyConfig->symbol[0]);
             }
             break;
@@ -194,6 +209,7 @@ void CalculatorCore::clearAll() {
     _pendingOperator = Operator::NONE;
     _waitingForOperand = false;
     _lastError = CalculatorError::NONE;
+    _state = CalculatorState::INPUT_NUMBER;
     // updateDisplay(); // 移除重复调用，由调用者负责
 }
 
@@ -237,13 +253,24 @@ const KeyMapping* CalculatorCore::findKeyMapping(uint8_t position) const {
 }
 
 void CalculatorCore::handleDigitInput(char digit) {
-    CALC_LOG_V("Digit input: %c", digit);
+    CALC_LOG_D("Digit input: '%c', current state=%d, buffer='%s'", digit, (int)_state, _inputBuffer.c_str());
     
-    if (_state == CalculatorState::DISPLAY_RESULT || _state == CalculatorState::INPUT_OPERATOR) {
-        // 如果当前显示结果或刚输入运算符，输入数字开始新输入
+    if (_state == CalculatorState::DISPLAY_RESULT) {
+        // 如果当前显示结果，输入数字开始全新计算
+        _inputBuffer = "";
+        _expressionDisplay = "";  // 清空表达式
+        _state = CalculatorState::INPUT_NUMBER;
+        _hasDecimalPoint = false;
+        _pendingOperator = Operator::NONE;
+        _previousNumber = 0.0;
+        _waitingForOperand = false;
+        
+        CALC_LOG_D("Starting new calculation after result display");
+    } else if (_state == CalculatorState::INPUT_OPERATOR) {
+        // 如果刚输入运算符，输入数字开始新输入
         _inputBuffer = "";
         _state = CalculatorState::INPUT_NUMBER;
-        _hasDecimalPoint = false;  // 重置小数点标志
+        _hasDecimalPoint = false;
     }
     
     if (digit == '.') {
@@ -256,9 +283,13 @@ void CalculatorCore::handleDigitInput(char digit) {
         }
         // 如果已有小数点，忽略此次输入
     } else {
-        if (_inputBuffer.isEmpty() || _inputBuffer == "0") {
+        if (_inputBuffer.isEmpty()) {
+            _inputBuffer = String(digit);
+        } else if (_inputBuffer == "0" && digit != '0') {
+            // 如果当前是单个"0"且输入的不是"0"，则替换
             _inputBuffer = String(digit);
         } else {
+            // 其他情况都是追加，包括"0"后面再输入"0"
             _inputBuffer += digit;
         }
     }
@@ -272,56 +303,95 @@ void CalculatorCore::handleDigitInput(char digit) {
 void CalculatorCore::handleOperatorInput(Operator op) {
     CALC_LOG_V("Operator input: %d", (int)op);
     
-    if (_state == CalculatorState::INPUT_NUMBER || _state == CalculatorState::DISPLAY_RESULT) {
-        if (_pendingOperator != Operator::NONE && _state == CalculatorState::INPUT_NUMBER) {
-            // 执行待处理的运算
-            if (!performCalculation()) {
-                return;
-            }
-            // performCalculation会设置_previousNumber = result
-        } else {
-            _previousNumber = _currentNumber;
-        }
-        
-        _pendingOperator = op;
-        _state = CalculatorState::INPUT_OPERATOR;
-        _waitingForOperand = true;
-        
-        // 更新表达式显示
-        String opSymbol = "";
-        switch(op) {
-            case Operator::ADD: opSymbol = "+"; break;
-            case Operator::SUBTRACT: opSymbol = "-"; break;
-            case Operator::MULTIPLY: opSymbol = "*"; break;
-            case Operator::DIVIDE: opSymbol = "/"; break;
-            default: opSymbol = "?"; break;
-        }
-        _expressionDisplay = formatNumber(_previousNumber) + " " + opSymbol + " ";
-        
-        CALC_LOG_D("Operator set: previous=%.6f, op=%s, waiting for operand", 
-                   _previousNumber, opSymbol.c_str());
-    } else if (_state == CalculatorState::INPUT_OPERATOR) {
-        // 如果已经在等待操作数状态，只是更换运算符
-        _pendingOperator = op;
-        String opSymbol = "";
-        switch(op) {
-            case Operator::ADD: opSymbol = "+"; break;
-            case Operator::SUBTRACT: opSymbol = "-"; break;
-            case Operator::MULTIPLY: opSymbol = "*"; break;
-            case Operator::DIVIDE: opSymbol = "/"; break;
-            default: opSymbol = "?"; break;
-        }
-        _expressionDisplay = formatNumber(_previousNumber) + " " + opSymbol + " ";
-        CALC_LOG_D("Operator changed to: %s", opSymbol.c_str());
+    String opSymbol = "";
+    switch(op) {
+        case Operator::ADD: opSymbol = "+"; break;
+        case Operator::SUBTRACT: opSymbol = "-"; break;
+        case Operator::MULTIPLY: opSymbol = "*"; break;
+        case Operator::DIVIDE: opSymbol = "/"; break;
+        default: opSymbol = "?"; break;
     }
+    
+    if (_state == CalculatorState::DISPLAY_RESULT) {
+        // 如果当前显示结果，开始新的表达式
+        _expressionDisplay = formatNumber(_currentNumber) + opSymbol;
+        _previousNumber = _currentNumber;
+        _pendingOperator = op;
+        
+        CALC_LOG_D("Starting new expression after result: %s", _expressionDisplay.c_str());
+        
+    } else if (_state == CalculatorState::INPUT_NUMBER) {
+        // 如果有待处理的运算符，先执行之前的计算
+        if (_pendingOperator != Operator::NONE) {
+            // 先将当前数字添加到表达式中
+            _expressionDisplay += formatNumber(_currentNumber);
+            
+            // 执行计算但不修改表达式显示
+            if (performCalculation()) {
+                // 计算完成后，在表达式后添加新运算符
+                _expressionDisplay += opSymbol;
+            } else {
+                return; // 计算错误，终止
+            }
+        } else {
+            // 将当前数字添加到表达式中
+            if (_expressionDisplay.isEmpty()) {
+                // 第一个数字和运算符
+                _expressionDisplay = formatNumber(_currentNumber) + opSymbol;  
+            } else {
+                // 继续积累表达式：添加当前数字和新运算符
+                _expressionDisplay += formatNumber(_currentNumber) + opSymbol;
+            }
+        }
+        
+        // 设置新的待处理运算符和操作数
+        _previousNumber = _currentNumber;
+        _pendingOperator = op;
+        
+    } else if (_state == CalculatorState::INPUT_OPERATOR) {
+        // 如果已经在等待操作数状态，只是更换最后一个运算符
+        if (!_expressionDisplay.isEmpty()) {
+            // 移除最后一个运算符，添加新的运算符
+            _expressionDisplay = _expressionDisplay.substring(0, _expressionDisplay.length() - 1) + opSymbol;
+        }
+        _pendingOperator = op;
+        CALC_LOG_D("Operator changed in expression: %s", _expressionDisplay.c_str());
+    }
+    
+    // 统一设置状态
+    _state = CalculatorState::INPUT_OPERATOR;
+    _waitingForOperand = true;
+    
+    // 重置输入区显示为0，等待下一个数字
+    _currentDisplay = "0";
+    _inputBuffer = "";
+    _hasDecimalPoint = false;
+    
+    CALC_LOG_D("Expression accumulated: %s, current display reset to 0", _expressionDisplay.c_str());
 }
 
 void CalculatorCore::handleFunctionInput(const KeyMapping* mapping) {
     CALC_LOG_V("Function input: %s", mapping->label);
     
     if (mapping->operation == Operator::EQUALS) {
-        if (_pendingOperator != Operator::NONE) {
-            performCalculation();
+        if (_pendingOperator != Operator::NONE && !_expressionDisplay.isEmpty()) {
+            // 将最后输入的数字添加到表达式中，形成完整表达式
+            String completeExpression = _expressionDisplay + formatNumber(_currentNumber);
+            
+            // 执行计算
+            if (performCalculation()) {
+                // 计算完成后，_currentNumber已经是结果
+                double result = _currentNumber;
+                
+                // 在L2显示完整表达式包括等号和结果
+                _expressionDisplay = completeExpression + "=" + formatNumber(result);
+                _state = CalculatorState::DISPLAY_RESULT;
+                
+                // 将完整表达式添加到历史记录
+                addToHistory(completeExpression, result);
+                
+                CALC_LOG_D("Equals executed: %s = %.6f", completeExpression.c_str(), result);
+            }
         }
     } else if (String(mapping->label) == "CLEAR") {
         clearAll();
@@ -382,33 +452,18 @@ bool CalculatorCore::performCalculation() {
     auto result = _engine->calculate(_previousNumber, _currentNumber, _pendingOperator);
     
     if (result.isValid) {
-        // 保存操作数用于历史记录
-        double leftOperand = _previousNumber;
-        double rightOperand = _currentNumber;
-        
         // 更新当前数字和显示
         _currentNumber = result.value;
         _previousNumber = result.value;  // 为链式运算准备
         _currentDisplay = formatNumber(_currentNumber);
-        _state = CalculatorState::DISPLAY_RESULT;
         
-        // 添加到历史记录
-        String opSymbol = "";
-        switch(_pendingOperator) {
-            case Operator::ADD: opSymbol = "+"; break;
-            case Operator::SUBTRACT: opSymbol = "-"; break;
-            case Operator::MULTIPLY: opSymbol = "*"; break;
-            case Operator::DIVIDE: opSymbol = "/"; break;
-            default: opSymbol = "?"; break;
-        }
-        String expr = formatNumber(leftOperand) + " " + opSymbol + " " + formatNumber(rightOperand);
-        addToHistory(expr, result.value);
-        
+        // 重置运算符状态
         _pendingOperator = Operator::NONE;
         _waitingForOperand = false;
+        _inputBuffer = "";
+        _hasDecimalPoint = false;
         
-        CALC_LOG_D("Calculation result: %.6f, updated previous=%.6f", 
-                   _currentNumber, _previousNumber);
+        CALC_LOG_D("Calculation result: %.6f", _currentNumber);
         return true;
     } else {
         setError(result.error);
@@ -482,8 +537,27 @@ void CalculatorCore::handleFunctionInput(const KeyConfig* keyConfig) {
     CALC_LOG_V("Function input (new): %s", keyConfig->label.c_str());
     
     if (keyConfig->operation == Operator::EQUALS) {
-        if (_pendingOperator != Operator::NONE) {
-            performCalculation();
+        CALC_LOG_D("Equals key pressed. Pending operator: %d, Expression: '%s'", 
+                   (int)_pendingOperator, _expressionDisplay.c_str());
+        
+        if (_pendingOperator != Operator::NONE && !_expressionDisplay.isEmpty()) {
+            // 将最后输入的数字添加到表达式中，形成完整表达式
+            String completeExpression = _expressionDisplay + formatNumber(_currentNumber);
+            
+            // 执行计算
+            if (performCalculation()) {
+                // 计算完成后，_currentNumber已经是结果
+                double result = _currentNumber;
+                
+                // 在L2显示完整表达式包括等号和结果
+                _expressionDisplay = completeExpression + "=" + formatNumber(result);
+                _state = CalculatorState::DISPLAY_RESULT;
+                
+                // 将完整表达式添加到历史记录
+                addToHistory(completeExpression, result);
+                
+                CALC_LOG_D("Equals executed: %s = %.6f", completeExpression.c_str(), result);
+            }
         }
     } else if (keyConfig->operation == Operator::PERCENT) {
         // 处理百分比
