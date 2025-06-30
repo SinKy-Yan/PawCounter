@@ -10,12 +10,10 @@
 #include "BatteryManager.h"
 #include "FeedbackManager.h"
 #include "CalculatorCore.h"
-#include "CalculatorDisplay.h"
+#include "calc_display.h"
+#include "CalcDisplayAdapter.h"
 #include "CalculationEngine.h"
 
-#ifdef ENABLE_LVGL_UI
-#include "LVGLDisplay.h"
-#endif
 
 // 全局对象
 Arduino_DataBus *bus = nullptr;
@@ -28,12 +26,10 @@ CRGB leds[NUM_LEDS];
 
 // 计算器系统
 std::shared_ptr<CalculationEngine> engine;
-std::shared_ptr<CalculatorDisplay> display;
+std::unique_ptr<CalcDisplay> display;
+std::shared_ptr<CalcDisplayAdapter> displayAdapter;
 std::shared_ptr<CalculatorCore> calculator;
 
-#ifdef ENABLE_LVGL_UI
-std::shared_ptr<LVGLDisplay> lvglDisplay;
-#endif
 
 // 函数声明
 void initDisplay();
@@ -81,7 +77,7 @@ void setup() {
     // 4. 初始化背光控制
     Serial.println("4. 初始化背光控制...");
     BacklightControl::getInstance().begin();
-    BacklightControl::getInstance().setBacklight(75, 2000);  // 75%亮度，2秒渐变
+    BacklightControl::getInstance().setBacklight(100, 2000);  // 100%最大亮度，2秒渐变
     LOG_I(TAG_MAIN, "背光控制初始化完成");
     
     // 5. 初始化反馈系统（LED效果 + 蜂鸣器）
@@ -127,36 +123,19 @@ void setup() {
     
     // 9. 创建显示管理器
     Serial.println("9. 初始化显示管理器...");
-#ifdef ENABLE_LVGL_UI
-    Serial.println("  - 使用LVGL UI界面");
-    lvglDisplay = std::make_shared<LVGLDisplay>(gfx, DISPLAY_WIDTH, DISPLAY_HEIGHT);
-    auto serialDisplay = std::make_shared<SerialDisplay>();
-    display = std::make_shared<DualDisplay>(lvglDisplay, serialDisplay);
-#else
-    Serial.println("  - 使用Arduino_GFX界面");
-    auto lcdDisplay = std::make_shared<LCDDisplay>(gfx);
-    auto serialDisplay = std::make_shared<SerialDisplay>();
-    display = std::make_shared<DualDisplay>(lcdDisplay, serialDisplay);
-#endif
-    if (!display->begin()) {
-        LOG_E(TAG_MAIN, "显示管理器初始化失败");
-        Serial.println("❌ 显示管理器初始化失败");
-        return;
-    }
+    Serial.println("  - 使用简化CalcDisplay界面");
+    display = std::make_unique<CalcDisplay>(gfx, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    displayAdapter = std::make_shared<CalcDisplayAdapter>(display.get());
     LOG_I(TAG_MAIN, "显示管理器初始化完成");
     
     // 10. 创建计算器核心
     Serial.println("10. 初始化计算器核心...");
     calculator = std::make_shared<CalculatorCore>();
-    calculator->setDisplay(display);
+    calculator->setDisplay(displayAdapter);
     calculator->setCalculationEngine(engine);
     
-    // 设置LCD显示器的计算器核心引用（用于获取历史记录）
-    // 由于我们知道display是DualDisplay类型，可以直接静态转换
-    if (auto dualDisplay = std::static_pointer_cast<DualDisplay>(display)) {
-        dualDisplay->setCalculatorCore(calculator.get());
-        Serial.println("  - 已设置显示器的计算器核心引用");
-    }
+    // 设置适配器的计算器核心引用（用于获取历史记录）
+    displayAdapter->setCalculatorCore(calculator.get());
     
     if (!calculator->begin()) {
         LOG_E(TAG_MAIN, "计算器核心初始化失败");
@@ -233,7 +212,7 @@ void initDisplay() {
                              0,             // 水平偏移（col_offset）
                              0,
                              0,
-                             145);          // 垂直偏移（row_offset）
+                             140);          // 垂直偏移（row_offset）- 向上扩展5像素
     
     Serial.println("  - 启动显示硬件...");
     if (!gfx->begin()) {
@@ -327,10 +306,6 @@ void handleSerialCommands() {
             Serial.println("== 调试功能 ==");
             Serial.println("layout         - 显示按键布局");
             Serial.println("keymap         - 按键映射测试");
-#ifdef ENABLE_LVGL_UI
-            Serial.println("testgrid       - 显示测试网格和边界");
-            Serial.println("cleargrid      - 清除测试网格，恢复UI");
-#endif
             Serial.println("log [level]    - 设置日志级别 (e/w/i/d/v)");
             Serial.println();
             Serial.println("== 配置状态 ==");
@@ -344,11 +319,7 @@ void handleSerialCommands() {
 #else
             Serial.println("电池管理: 已禁用");
 #endif
-#ifdef ENABLE_LVGL_UI
-            Serial.println("UI界面: LVGL");
-#else
-            Serial.println("UI界面: Arduino_GFX");
-#endif
+            Serial.println("UI界面: CalcDisplay简化UI");
             Serial.println("=========================\n");
         }
         else if (command == "status" || command == "s") {
@@ -426,38 +397,6 @@ void handleSerialCommands() {
             } else {
                 Serial.println("❌ GFX对象为空");
             }
-        }
-        else if (command == "testgrid") {
-#ifdef ENABLE_LVGL_UI
-            Serial.println("尝试显示测试网格...");
-            if (lvglDisplay) {
-                Serial.println("LVGL显示对象存在，调用showTestGrid()");
-                lvglDisplay->showTestGrid();
-                Serial.println("显示测试网格 - 查看显示范围和坐标");
-                Serial.println("颜色说明:");
-                Serial.println("  红色: 左上角(0,0)");
-                Serial.println("  绿色: 右上角");
-                Serial.println("  蓝色: 左下角");
-                Serial.println("  黄色: 右下角");
-                Serial.println("  白色: 中心十字线");
-                Serial.println("  灰色: 网格线(50x25像素)");
-                Serial.println("发送 'cleargrid' 恢复正常UI");
-            } else {
-                Serial.println("错误: LVGL显示对象为空指针");
-            }
-#else
-            Serial.println("测试网格功能需要LVGL界面");
-#endif
-        }
-        else if (command == "cleargrid") {
-#ifdef ENABLE_LVGL_UI
-            if (lvglDisplay) {
-                lvglDisplay->clearTestGrid();
-                Serial.println("测试网格已清除，恢复正常计算器UI");
-            }
-#else
-            Serial.println("清除网格功能需要LVGL界面");
-#endif
         }
         else if (command == "clear" || command == "c") {
             if (calculator) {
@@ -546,12 +485,6 @@ void updateSystems() {
     // 更新反馈系统
     FEEDBACK_MGR.update();
     
-#ifdef ENABLE_LVGL_UI
-    // 更新LVGL任务处理器
-    if (lvglDisplay) {
-        lvglDisplay->update();
-    }
-#endif
     
     // 定期更新电池状态（每5秒）
 #ifdef ENABLE_BATTERY_MANAGER

@@ -224,7 +224,6 @@ private:
 #define TAG_SYSTEM      "SYSTEM"
 #define TAG_INIT        "INIT"
 #define TAG_MODE        "MODE"
-#define TAG_LVGL        "LVGL"
 
 // 便捷宏定义
 #define LOG_E(tag, format, ...) Logger::getInstance().error(tag, format, ##__VA_ARGS__)
@@ -270,10 +269,5 @@ private:
 #define MODE_LOG_D(format, ...) LOG_D(TAG_MODE, format, ##__VA_ARGS__)
 #define MODE_LOG_V(format, ...) LOG_V(TAG_MODE, format, ##__VA_ARGS__)
 
-#define LVGL_LOG_E(format, ...) LOG_E(TAG_LVGL, format, ##__VA_ARGS__)
-#define LVGL_LOG_W(format, ...) LOG_W(TAG_LVGL, format, ##__VA_ARGS__)
-#define LVGL_LOG_I(format, ...) LOG_I(TAG_LVGL, format, ##__VA_ARGS__)
-#define LVGL_LOG_D(format, ...) LOG_D(TAG_LVGL, format, ##__VA_ARGS__)
-#define LVGL_LOG_V(format, ...) LOG_V(TAG_LVGL, format, ##__VA_ARGS__)
 
 #endif // LOGGER_H

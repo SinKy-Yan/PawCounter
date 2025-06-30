@@ -27,7 +27,7 @@
 // 前向声明
 class CalculatorDisplay;
 class CalculationEngine;
-class CalculatorMode;
+// class CalculatorMode; // 移除模式系统
 class NumberFormatter;
 
 // 使用 KeyboardConfig.h 中定义的枚举类型
@@ -125,20 +125,15 @@ public:
      * @param mode 计算模式指针
      * @return 模式ID
      */
-    uint8_t addMode(std::shared_ptr<CalculatorMode> mode);
-    
-    /**
-     * @brief 切换计算模式
-     * @param modeId 模式ID
-     * @return true 成功，false 失败
-     */
-    bool switchMode(uint8_t modeId);
+    // 模式系统已移除
+    // uint8_t addMode(std::shared_ptr<CalculatorMode> mode);
+    // bool switchMode(uint8_t modeId);
     
     /**
      * @brief 获取当前模式ID
      * @return 当前模式ID
      */
-    uint8_t getCurrentModeId() const { return _currentModeId; }
+    // uint8_t getCurrentModeId() const { return _currentModeId; } // 移除模式系统
     
     /**
      * @brief 获取当前状态
@@ -188,11 +183,11 @@ private:
     // 核心组件
     std::shared_ptr<CalculatorDisplay> _display;        ///< 显示管理器
     std::shared_ptr<CalculationEngine> _engine;         ///< 计算引擎
-    std::vector<std::shared_ptr<CalculatorMode>> _modes; ///< 计算模式列表
+    // std::vector<std::shared_ptr<CalculatorMode>> _modes; // 移除模式系统
     
     // 状态管理
     CalculatorState _state;             ///< 当前状态
-    uint8_t _currentModeId;            ///< 当前模式ID
+    // uint8_t _currentModeId;            // 移除模式系统
     CalculatorError _lastError;         ///< 最后的错误
     
     // 输入缓冲

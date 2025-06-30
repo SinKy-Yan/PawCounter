@@ -9,7 +9,7 @@
 #include "CalculatorCore.h"
 #include "CalculatorDisplay.h"
 #include "CalculationEngine.h"
-#include "CalculatorModes.h"
+// 移除模式系统相关代码
 #include "KeyboardConfig.h"
 
 // 按键映射表定义（基于实际物理按键编号 1-22）
@@ -45,7 +45,7 @@ const size_t CalculatorCore::_keyMappingsSize = sizeof(_keyMappings) / sizeof(_k
 
 CalculatorCore::CalculatorCore() 
     : _state(CalculatorState::INPUT_NUMBER)
-    , _currentModeId(0)
+    // , _currentModeId(0) // 移除模式系统
     , _lastError(CalculatorError::NONE)
     , _currentNumber(0.0)
     , _previousNumber(0.0)
@@ -150,7 +150,7 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
             break;
             
         case KeyType::MODE_SWITCH:
-            handleModeSwitch();
+            // handleModeSwitch(); // 模式切换已移除
             break;
             
         default:
@@ -172,33 +172,9 @@ void CalculatorCore::setCalculationEngine(std::shared_ptr<CalculationEngine> eng
     CALC_LOG_I("Calculation engine set");
 }
 
-uint8_t CalculatorCore::addMode(std::shared_ptr<CalculatorMode> mode) {
-    _modes.push_back(mode);
-    uint8_t modeId = _modes.size() - 1;
-    mode->setModeId(modeId);
-    CALC_LOG_I("Mode added: %s (ID: %d)", mode->getName().c_str(), modeId);
-    return modeId;
-}
-
-bool CalculatorCore::switchMode(uint8_t modeId) {
-    if (modeId >= _modes.size()) {
-        CALC_LOG_E("Invalid mode ID: %d", modeId);
-        return false;
-    }
-    
-    // 去激活当前模式
-    if (_currentModeId < _modes.size()) {
-        _modes[_currentModeId]->deactivate();
-    }
-    
-    // 激活新模式
-    _currentModeId = modeId;
-    _modes[_currentModeId]->activate(_display, _engine);
-    
-    CALC_LOG_I("Switched to mode: %s", _modes[_currentModeId]->getName().c_str());
-    updateDisplay();
-    return true;
-}
+// 模式系统相关函数已移除
+// uint8_t CalculatorCore::addMode(...) 
+// bool CalculatorCore::switchMode(...)
 
 void CalculatorCore::clearEntry() {
     CALC_LOG_D("Clear entry");
@@ -206,7 +182,7 @@ void CalculatorCore::clearEntry() {
     _currentDisplay = "0";
     _hasDecimalPoint = false;
     _state = CalculatorState::INPUT_NUMBER;
-    updateDisplay();
+    // updateDisplay(); // 移除重复调用，由调用者负责
 }
 
 void CalculatorCore::clearAll() {
@@ -218,7 +194,7 @@ void CalculatorCore::clearAll() {
     _pendingOperator = Operator::NONE;
     _waitingForOperand = false;
     _lastError = CalculatorError::NONE;
-    updateDisplay();
+    // updateDisplay(); // 移除重复调用，由调用者负责
 }
 
 void CalculatorCore::updateDisplay() {
@@ -451,9 +427,11 @@ void CalculatorCore::addToHistory(const String& expression, double result) {
     entry.expression = expression;
     entry.result = result;
     entry.timestamp = millis();
-    entry.modeId = _currentModeId;
+    entry.modeId = 0; // 固定为基本模式
     
     _history.push_back(entry);
+    
+    // 历史记录已保存在内部，显示器可以通过getHistory()获取
     
     // 限制历史记录数量
     if (_history.size() > _maxHistorySize) {
@@ -561,15 +539,5 @@ void CalculatorCore::handleBackspace() {
     }
 }
 
-void CalculatorCore::handleModeSwitch() {
-    CALC_LOG_I("Mode switch requested");
-    
-    // 简单的模式切换：在基本模式和财务模式间切换
-    uint8_t nextModeId = (_currentModeId == 0) ? 1 : 0;
-    
-    if (nextModeId < _modes.size()) {
-        switchMode(nextModeId);
-    } else {
-        CALC_LOG_W("Mode %d not available", nextModeId);
-    }
-}
+// 模式切换函数已移除
+// void CalculatorCore::handleModeSwitch() { ... }
