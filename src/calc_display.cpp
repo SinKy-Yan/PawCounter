@@ -2,9 +2,18 @@
 #include "graphics/animation/Animation.h"
 #include "graphics/animation/CharSlideAnim.h"
 #include "graphics/animation/MoveToExprAnim.h"
+#include "graphics/animation/AnimationManager.h"
+#include "graphics/animation/PerformanceMonitor.h"
+#include "Logger.h"
+
+#define TAG_CALC_DISPLAY "CalcDisp"
 
 CalcDisplay::CalcDisplay(Arduino_GFX *d, uint16_t w, uint16_t h)
     : tft(d), screenWidth(w), screenHeight(h), _currentAnimation(nullptr) {
+    
+    // P1阶段：初始化动画系统 - 优化帧率减少闪烁
+    _animationManager = new AnimationManager(3, 12);  // 最大3个并发动画，12FPS减少闪烁
+    _performanceMonitor = new PerformanceMonitor(12.0f, 1000);  // 12FPS目标，1秒更新间隔
     
     // 初始化历史记录
     history[0] = "";  // 最新
@@ -16,6 +25,29 @@ CalcDisplay::CalcDisplay(Arduino_GFX *d, uint16_t w, uint16_t h)
     // 绘制初始界面
     drawFrame();
     refresh();
+    
+    LOG_I(TAG_CALC_DISPLAY, "CalcDisplay initialized with AnimationManager and PerformanceMonitor");
+}
+
+CalcDisplay::~CalcDisplay() {
+    // 清理动画系统
+    if (_animationManager) {
+        delete _animationManager;
+        _animationManager = nullptr;
+    }
+    
+    if (_performanceMonitor) {
+        delete _performanceMonitor;
+        _performanceMonitor = nullptr;
+    }
+    
+    // P0兼容性清理
+    if (_currentAnimation) {
+        delete _currentAnimation;
+        _currentAnimation = nullptr;
+    }
+    
+    LOG_I(TAG_CALC_DISPLAY, "CalcDisplay destroyed");
 }
 
 void CalcDisplay::initializeLines() {
@@ -45,11 +77,16 @@ void CalcDisplay::drawLine(uint8_t lineIndex) {
     
     LineConfig &line = lines[lineIndex];
     
-    // 设置文本属性并绘制（不做局部擦除）
-    tft->setTextColor(line.color);
+    // ★ 真正的防闪烁：一次性批量写入
+    tft->startWrite();
+    
+    // 设置文本属性（第二个参数=背景色，可省fillRect）
+    tft->setTextColor(line.color, COLOR_BG);
     tft->setTextSize(line.textSize);
     tft->setCursor(PAD_X, line.y);
     tft->print(line.text);
+    
+    tft->endWrite();
 }
 
 void CalcDisplay::pushHistory(const String &line) {
@@ -103,51 +140,100 @@ void CalcDisplay::updateResultDirect(const String &res) {
     lines[3].text = res;
 }
 
-// 动画tick更新
+// 动画tick更新 - P1阶段：集成AnimationManager和PerformanceMonitor
 void CalcDisplay::tick() {
+    // 性能监控：开始帧
+    if (_performanceMonitor) {
+        _performanceMonitor->beginFrame();
+    }
+    
+    // 更新动画管理器
+    uint8_t activeAnimCount = 0;
+    if (_animationManager) {
+        // 简单的垂直同步等待，减少闪烁
+        waitForVSync();
+        
+        activeAnimCount = _animationManager->tick();
+        
+        // 根据性能监控调整参数
+        if (_performanceMonitor) {
+            if (_performanceMonitor->shouldReduceFrameRate()) {
+                uint8_t recommendedFPS = _performanceMonitor->getRecommendedFPS();
+                _animationManager->setTargetFPS(recommendedFPS);
+            }
+            
+            if (_performanceMonitor->shouldReduceAnimations()) {
+                uint8_t maxAnims = _performanceMonitor->getRecommendedMaxAnimations();
+                _animationManager->setMaxConcurrentAnimations(maxAnims);
+            }
+            
+            if (_performanceMonitor->shouldDisableAnimations()) {
+                _animationManager->interruptAllAnimations();
+            }
+        }
+    }
+    
+    // P0兼容性：处理旧的单一动画（逐步迁移）
     if (_currentAnimation != nullptr) {
         bool continueAnimation = _currentAnimation->tick();
         if (!continueAnimation) {
-            // 动画结束，清理资源
             delete _currentAnimation;
             _currentAnimation = nullptr;
         }
     }
+    
+    // 性能监控：结束帧并更新
+    if (_performanceMonitor) {
+        _performanceMonitor->endFrame();
+        _performanceMonitor->update(activeAnimCount);
+    }
 }
 
-// A1/A2动画：字符滑入/滑出
+// A1/A2动画：字符滑入/滑出 - P1阶段：使用AnimationManager
 void CalcDisplay::animateInputChange(const String& oldTxt, const String& newTxt) {
-    // 中断当前动画
-    if (_currentAnimation != nullptr) {
-        _currentAnimation->interrupt();
-        delete _currentAnimation;
-        _currentAnimation = nullptr;
+    if (!_animationManager) {
+        LOG_E(TAG_CALC_DISPLAY, "AnimationManager not initialized");
+        return;
     }
     
     // 判断是滑入还是滑出
     bool isInsert = newTxt.length() > oldTxt.length();
     
     // 创建新动画
-    _currentAnimation = new CharSlideAnim(this, oldTxt, newTxt, isInsert, 3, 200);
-    _currentAnimation->start();
+    Animation* newAnim = new CharSlideAnim(this, oldTxt, newTxt, isInsert, 3, 200);
+    
+    // 添加到动画管理器
+    bool added = _animationManager->addAnimation(newAnim, true);
+    if (!added) {
+        LOG_W(TAG_CALC_DISPLAY, "Failed to add CharSlideAnim to AnimationManager");
+        delete newAnim;  // 清理资源
+    } else {
+        LOG_D(TAG_CALC_DISPLAY, "CharSlideAnim added: %s -> %s", oldTxt.c_str(), newTxt.c_str());
+    }
 }
 
-// B动画：数字上移缩小到表达式区
+// B动画：数字上移缩小到表达式区 - P1阶段：使用AnimationManager
 void CalcDisplay::animateMoveInputToExpr(const String& inputTxt, const String& finalExpr) {
-    // 中断当前动画
-    if (_currentAnimation != nullptr) {
-        _currentAnimation->interrupt();
-        delete _currentAnimation;
-        _currentAnimation = nullptr;
+    if (!_animationManager) {
+        LOG_E(TAG_CALC_DISPLAY, "AnimationManager not initialized");
+        return;
     }
     
     // 创建上移缩小动画
-    _currentAnimation = new MoveToExprAnim(this, inputTxt, finalExpr, 250);
-    _currentAnimation->start();
+    Animation* newAnim = new MoveToExprAnim(this, inputTxt, finalExpr, 250);
+    
+    // 添加到动画管理器
+    bool added = _animationManager->addAnimation(newAnim, true);
+    if (!added) {
+        LOG_W(TAG_CALC_DISPLAY, "Failed to add MoveToExprAnim to AnimationManager");
+        delete newAnim;  // 清理资源
+    } else {
+        LOG_D(TAG_CALC_DISPLAY, "MoveToExprAnim added: %s -> %s", inputTxt.c_str(), finalExpr.c_str());
+    }
 }
 
 // 动画辅助方法
-void CalcDisplay::clearLineArea(uint8_t lineIndex) {
+void CalcDisplay::clearLineArea(uint8_t lineIndex, bool inWriteBatch) {
     if (lineIndex >= 4) return;
     
     LineConfig &line = lines[lineIndex];
@@ -158,11 +244,70 @@ void CalcDisplay::clearLineArea(uint8_t lineIndex) {
     uint16_t w = screenWidth - PAD_X * 2;
     uint16_t h = line.charHeight;
     
+    // 根据是否在批量写入中决定是否包装startWrite/endWrite
+    if (!inWriteBatch) {
+        tft->startWrite();
+    }
+    
     // 清除区域
     tft->fillRect(x, y, w, h, COLOR_BG);
+    
+    if (!inWriteBatch) {
+        tft->endWrite();
+    }
 }
 
 uint16_t CalcDisplay::getCharWidth(uint8_t textSize) {
     // Arduino_GFX标准字符宽度：6像素 * textSize
     return 6 * textSize;
+}
+
+// P1阶段：新增动画管理方法
+void CalcDisplay::interruptCurrentAnimation() {
+    if (_animationManager) {
+        _animationManager->interruptAllAnimations();
+        LOG_D(TAG_CALC_DISPLAY, "All animations interrupted");
+    }
+    
+    // P0兼容性
+    if (_currentAnimation) {
+        _currentAnimation->interrupt();
+        delete _currentAnimation;
+        _currentAnimation = nullptr;
+    }
+}
+
+bool CalcDisplay::hasActiveAnimation() const {
+    bool hasManagerAnims = _animationManager && _animationManager->getActiveAnimationCount() > 0;
+    bool hasLegacyAnim = _currentAnimation != nullptr;
+    return hasManagerAnims || hasLegacyAnim;
+}
+
+uint8_t CalcDisplay::getActiveAnimationCount() const {
+    uint8_t count = 0;
+    
+    if (_animationManager) {
+        count += _animationManager->getActiveAnimationCount();
+    }
+    
+    if (_currentAnimation) {
+        count += 1;  // P0兼容性
+    }
+    
+    return count;
+}
+
+// P1阶段：简单的垂直同步等待，减少闪烁
+void CalcDisplay::waitForVSync() {
+    // 简单的延时同步，避免在LCD刷新中途更新
+    // 对于大部分LCD，刷新率约60Hz，我们等待刷新间隔
+    static unsigned long lastVSync = 0;
+    unsigned long currentTime = millis();
+    
+    // 确保每帧间隔至少16ms（约60FPS上限）
+    if (currentTime - lastVSync < 16) {
+        delay(1);  // 短暂延时
+    }
+    
+    lastVSync = currentTime;
 }

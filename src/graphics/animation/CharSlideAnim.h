@@ -17,6 +17,7 @@ private:
     int16_t _startX;        // 起始X坐标
     int16_t _endX;          // 结束X坐标
     int16_t _currentX;      // 当前X坐标
+    int16_t _lastX;         // 上一帧X坐标（用于精确清除）
     
 public:
     /**
@@ -69,4 +70,5 @@ private:
      * @param lineIndex 行索引
      */
     void drawMovingChar(char character, int16_t x, uint8_t lineIndex);
+    
 };

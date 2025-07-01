@@ -3,9 +3,9 @@
 
 CharSlideAnim::CharSlideAnim(CalcDisplay* display, const String& prevText, const String& newText,
                              bool insertMode, uint8_t lineIndex, unsigned long duration)
-    : Animation(display, duration, Animation::PRIORITY_NORMAL, 15),
+    : Animation(display, duration, Animation::PRIORITY_NORMAL, 12),  // 降低帧率减少闪烁
       _prevText(prevText), _newText(newText), _isInsertMode(insertMode), _lineIndex(lineIndex),
-      _charWidth(0), _startX(0), _endX(0), _currentX(0) {
+      _charWidth(0), _startX(0), _endX(0), _currentX(0), _lastX(0) {
 }
 
 void CharSlideAnim::start() {
@@ -34,6 +34,7 @@ void CharSlideAnim::calculateAnimationParams() {
     }
     
     _currentX = _startX;
+    _lastX = _startX;
 }
 
 void CharSlideAnim::renderFrame(float progress) {
@@ -43,39 +44,47 @@ void CharSlideAnim::renderFrame(float progress) {
     // 计算当前X位置
     _currentX = _startX + (int16_t)((float)(_endX - _startX) * easedProgress);
     
-    // 清除目标行
-    clearLine(_lineIndex);
+    // ★ 真正的防闪烁：一次性批量写入
+    _display->tft->startWrite();
+    
+    // 1) 清行 (直接 fillRect，切勿再次 startWrite)
+    const auto &line = _display->lines[_lineIndex];
+    _display->tft->fillRect(_display->PAD_X, line.y,
+                            _display->screenWidth - _display->PAD_X * 2,
+                            line.charHeight,
+                            _display->COLOR_BG);
     
     if (_isInsertMode) {
         // A1: 滑入模式
-        // 1. 绘制原有的静态文本
-        drawStaticText(_prevText, _lineIndex);
+        // 2) 绘制静态文本 (内部只setCursor/print)
+        if (_prevText.length() > 0) {
+            drawStaticText(_prevText, _lineIndex);
+        }
         
-        // 2. 绘制正在滑入的新字符
+        // 3) 绘制动态字符
         if (_newText.length() > _prevText.length()) {
             char newChar = _newText.charAt(_prevText.length());
             drawMovingChar(newChar, _currentX, _lineIndex);
         }
-        
-        // 动画结束时更新最终状态
-        if (progress >= 1.0f) {
-            _display->lines[_lineIndex].text = _newText;
-        }
     } else {
         // A2: 滑出模式
-        // 1. 绘制保留的静态文本
-        drawStaticText(_newText, _lineIndex);
+        // 2) 绘制保留的静态文本
+        if (_newText.length() > 0) {
+            drawStaticText(_newText, _lineIndex);
+        }
         
-        // 2. 绘制正在滑出的字符
+        // 3) 绘制正在滑出的字符
         if (_prevText.length() > _newText.length()) {
             char deletedChar = _prevText.charAt(_newText.length());
             drawMovingChar(deletedChar, _currentX, _lineIndex);
         }
-        
-        // 动画结束时更新最终状态
-        if (progress >= 1.0f) {
-            _display->lines[_lineIndex].text = _newText;
-        }
+    }
+    
+    _display->tft->endWrite();
+    
+    // 动画结束时更新最终状态
+    if (progress >= 1.0f) {
+        _display->lines[_lineIndex].text = _newText;
     }
 }
 
@@ -108,3 +117,4 @@ void CharSlideAnim::drawMovingChar(char character, int16_t x, uint8_t lineIndex)
     // 绘制单个字符
     _display->tft->print(character);
 }
+

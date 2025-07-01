@@ -30,9 +30,7 @@ bool Animation::tick() {
     // 渲染当前帧
     renderFrame(progress);
     
-    // P0阶段：简单延时控制帧率（阻塞实现）
-    delay(1000 / _targetFPS);
-    
+    // P1阶段：非阻塞实现，帧率控制由AnimationManager负责
     return true;
 }
 

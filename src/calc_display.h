@@ -1,6 +1,11 @@
 #pragma once
 #include <Arduino_GFX_Library.h>
 
+// 前向声明
+class Animation;
+class AnimationManager;
+class PerformanceMonitor;
+
 /**
  * @brief 简化版计算器显示UI
  * @details 基于建议的UI设计：
@@ -8,6 +13,7 @@
  * - 4行布局：L0历史第2条，L1历史第1条，L2当前表达式，L3计算结果
  * - 局部刷新避免闪烁
  * - 滚动历史效果（L0部分隐藏）
+ * - P1阶段：集成AnimationManager和PerformanceMonitor
  */
 class CalcDisplay {
     // 允许Animation类访问内部成员
@@ -17,6 +23,7 @@ class CalcDisplay {
     
 public:
     CalcDisplay(Arduino_GFX *d, uint16_t w, uint16_t h);
+    ~CalcDisplay();
 
     void pushHistory(const String &line);      // 添加历史记录并滚动
     void setExpr(const String &expr);          // 设置当前表达式
@@ -29,9 +36,18 @@ public:
     void updateExprDirect(const String &expr);
     void updateResultDirect(const String &res);
     
-    // 动画支持方法
+    // P1阶段：AnimationManager集成
     void animateInputChange(const String& oldTxt, const String& newTxt);   // A1/A2
     void animateMoveInputToExpr(const String& inputTxt, const String& finalExpr); // B
+    
+    // 性能监控集成
+    PerformanceMonitor* getPerformanceMonitor() { return _performanceMonitor; }
+    AnimationManager* getAnimationManager() { return _animationManager; }
+    
+    // 动画管理
+    void interruptCurrentAnimation();
+    bool hasActiveAnimation() const;
+    uint8_t getActiveAnimationCount() const;
 
 private:
     // UI常量
@@ -54,14 +70,21 @@ private:
     LineConfig lines[4];
     String history[2];  // history[0]最新，history[1]较旧
     
-    // 动画相关成员
-    class Animation* _currentAnimation;           // 当前播放的动画
+    // P1阶段：动画系统升级
+    AnimationManager* _animationManager;          // 动画管理器
+    PerformanceMonitor* _performanceMonitor;      // 性能监控器
+    
+    // P0兼容性（暂时保留）
+    class Animation* _currentAnimation;           // 当前播放的动画（P0兼容）
 
     void drawFrame();                             // 绘制边框
     void drawLine(uint8_t lineIndex);             // 局部刷新指定行
     void initializeLines();                       // 初始化行配置
     
     // 动画辅助方法
-    void clearLineArea(uint8_t lineIndex);        // 清除指定行区域
+    void clearLineArea(uint8_t lineIndex, bool inWriteBatch = false);  // 清除指定行区域
     uint16_t getCharWidth(uint8_t textSize);      // 获取字符宽度
+    
+    // P1阶段：减少闪烁的优化方法
+    void waitForVSync();                          // 简单的垂直同步等待
 };

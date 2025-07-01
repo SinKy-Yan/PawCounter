@@ -11,11 +11,19 @@
 #define DEBUG_MODE                      // 启用调试模式
 // #define ENABLE_BATTERY_MANAGER       // 启用电池管理（调试时可注释）
 
-// =================== 动画配置 ===================
+// =================== 动画配置（P1阶段升级）===================
 #define ENABLE_ANIMATIONS 1             // 启用动画系统
-#define ANIMATION_DEFAULT_FPS 15        // 默认动画帧率
+#define ANIMATION_DEFAULT_FPS 12        // P1阶段：优化帧率减少闪烁
 #define MAX_CONCURRENT_ANIMATIONS 3     // 最大并发动画数量
 #define ENABLE_ANIMATION_DEBUG 0        // 启用动画调试输出
+
+// P1阶段：性能监控配置
+#define ENABLE_PERFORMANCE_MONITOR 0    // 禁用性能监控
+#define PERFORMANCE_UPDATE_INTERVAL 1000 // 性能统计更新间隔(ms)
+#define MIN_ACCEPTABLE_FPS 16           // 最低可接受帧率
+#define MAX_FRAME_TIME_MS 50            // 最大可接受帧时间(ms)
+#define PERF_LOW_BATTERY_THRESHOLD 20   // 低电量阈值(%)
+#define MIN_FREE_HEAP_KB 10            // 最小可用内存阈值(KB)
 
 // =================== WiFi和OTA配置 ===================
 #ifdef OTA_ENABLED

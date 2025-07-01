@@ -53,17 +53,30 @@ void MoveToExprAnim::renderFrame(float progress) {
     _currentSize = interpolate(_params.startSize, _params.endSize, easedProgress);
     _currentColor = _params.startColor; // 颜色暂不插值
     
-    // 清除相关区域
-    _display->clearLineArea(2); // 表达式行
-    _display->clearLineArea(3); // 结果行
+    // ★ 真正的防闪烁：一次性批量写入
+    _display->tft->startWrite();
     
-    // 绘制移动中的数字
+    // 1) 清除相关区域 (直接 fillRect，在批量写入中)
+    const auto& line2 = _display->lines[2];
+    const auto& line3 = _display->lines[3];
+    
+    // 清除表达式行
+    _display->tft->fillRect(_display->PAD_X, line2.y,
+                            _display->screenWidth - _display->PAD_X * 2,
+                            line2.charHeight, _display->COLOR_BG);
+    
+    // 清除结果行
+    _display->tft->fillRect(_display->PAD_X, line3.y,
+                            _display->screenWidth - _display->PAD_X * 2,
+                            line3.charHeight, _display->COLOR_BG);
+    
+    // 2) 绘制移动中的数字
     _display->tft->setTextColor(_currentColor);
     _display->tft->setTextSize(_currentSize);
     _display->tft->setCursor(_display->PAD_X, _currentY);
     _display->tft->print(_inputText);
     
-    // 如果有运算符后缀，显示在表达式行
+    // 3) 如果有运算符后缀，显示在表达式行
     if (_operatorSuffix.length() > 0 && progress > 0.5f) {
         _display->tft->setTextColor(_display->lines[2].color);
         _display->tft->setTextSize(_display->lines[2].textSize);
@@ -75,13 +88,15 @@ void MoveToExprAnim::renderFrame(float progress) {
         _display->tft->print(_operatorSuffix);
     }
     
-    // 显示新的结果（通常是"0"）
+    // 4) 显示新的结果（通常是"0"）
     if (progress > 0.3f) {
         _display->tft->setTextColor(_display->lines[3].color);
         _display->tft->setTextSize(_display->lines[3].textSize);
         _display->tft->setCursor(_display->PAD_X, _display->lines[3].y);
         _display->tft->print("0");
     }
+    
+    _display->tft->endWrite();
     
     // 动画结束时更新最终状态
     if (progress >= 1.0f) {

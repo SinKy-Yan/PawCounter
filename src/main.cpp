@@ -148,29 +148,22 @@ void setup() {
     }
     LOG_I(TAG_MAIN, "计算器核心初始化完成");
     
-    // 12. 显示启动信息
-    if (gfx) {
-        gfx->fillScreen(0x0000); // 黑色背景
-        gfx->setTextColor(0x07E0); // 绿色文字
-        gfx->setTextSize(3);       // 标题字体
+    // 12. 初始化计算器界面（直接进入计算器）
+    if (calculator && displayAdapter) {
+        // 清除所有内容，设置初始状态
+        calculator->clearAll();
         
-        // 显示欢迎信息
-        gfx->setCursor(10, 30);
-        gfx->print("Calculator Ready");
+        // 立即刷新显示，显示计算器界面（显示"0"）
+        displayAdapter->updateDisplay(
+            calculator->getCurrentDisplay(),
+            "",  // 表达式为空
+            calculator->getState()
+        );
         
-        gfx->setTextColor(0xFFFF); // 白色文字
-        gfx->setTextSize(2);       // 版本信息字体
-        
-        // 版本信息
-        gfx->setCursor(10, 70);
-        gfx->print("ESP32-S3 Calculator v2.0");
-        
-        // 提示信息
-        gfx->setCursor(10, 100);
-        gfx->print("Press any key to start");
+        LOG_I(TAG_MAIN, "计算器界面已就绪");
     }
     
-    // 12. 启动效果
+    // 13. 启动效果
     FEEDBACK_MGR.triggerSystemFeedback(SCENE_SYSTEM_STARTUP);
     
     
