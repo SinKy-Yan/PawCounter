@@ -111,8 +111,12 @@ void setup() {
     Serial.println("🔧 电池管理系统已禁用 - 调试模式");
 #endif
     
-    // 8. 创建计算引擎
-    Serial.println("8. 初始化计算引擎...");
+    // 8. OTA更新功能已移除
+    Serial.println("8. OTA更新功能已移除");
+    LOG_I(TAG_MAIN, "OTA更新功能已移除");
+    
+    // 9. 创建计算引擎
+    Serial.println("9. 初始化计算引擎...");
     engine = std::make_shared<CalculationEngine>();
     if (!engine->begin()) {
         LOG_E(TAG_MAIN, "计算引擎初始化失败");
@@ -121,15 +125,15 @@ void setup() {
     }
     LOG_I(TAG_MAIN, "计算引擎初始化完成");
     
-    // 9. 创建显示管理器
-    Serial.println("9. 初始化显示管理器...");
+    // 10. 创建显示管理器
+    Serial.println("10. 初始化显示管理器...");
     Serial.println("  - 使用简化CalcDisplay界面");
-    display = std::make_unique<CalcDisplay>(gfx, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    display = std::unique_ptr<CalcDisplay>(new CalcDisplay(gfx, DISPLAY_WIDTH, DISPLAY_HEIGHT));
     displayAdapter = std::make_shared<CalcDisplayAdapter>(display.get());
     LOG_I(TAG_MAIN, "显示管理器初始化完成");
     
-    // 10. 创建计算器核心
-    Serial.println("10. 初始化计算器核心...");
+    // 11. 创建计算器核心
+    Serial.println("11. 初始化计算器核心...");
     calculator = std::make_shared<CalculatorCore>();
     calculator->setDisplay(displayAdapter);
     calculator->setCalculationEngine(engine);
@@ -144,7 +148,7 @@ void setup() {
     }
     LOG_I(TAG_MAIN, "计算器核心初始化完成");
     
-    // 11. 显示启动信息
+    // 12. 显示启动信息
     if (gfx) {
         gfx->fillScreen(0x0000); // 黑色背景
         gfx->setTextColor(0x07E0); // 绿色文字
@@ -178,6 +182,7 @@ void setup() {
 }
 
 void loop() {
+
     static unsigned long lastUpdate = 0;
     unsigned long currentTime = millis();
     
@@ -189,6 +194,11 @@ void loop() {
     
     // 处理串口命令
     handleSerialCommands();
+    
+    // 更新动画系统
+    if (display) {
+        display->tick();
+    }
     
     // 小延迟避免过度占用CPU
     delay(1);
@@ -337,6 +347,7 @@ void handleSerialCommands() {
 #else
             Serial.printf("电池管理: 已禁用\n");
 #endif
+            Serial.printf("OTA更新: 已移除\n");
             Serial.println("==================\n");
         }
         else if (command.startsWith("backlight ")) {

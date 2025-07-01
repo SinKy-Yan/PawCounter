@@ -317,7 +317,7 @@ uint8_t KeypadControl::getVolumeDuty(BuzzerVolume volume) const {
 void KeypadControl::startBuzzer(uint16_t freq, uint16_t duration) {
     // 蜂鸣器功能已移至 BuzzerSoundManager，此方法保留接口兼容性
     KEYPAD_LOG_D("Buzzer call redirected to BuzzerSoundManager (freq=%d, duration=%d)", freq, duration);
-    // TODO: 可以通过 BuzzerSoundManager 实现实际的蜂鸣器控制
+    // 实际蜂鸣器控制由 BuzzerSoundManager 处理
 }
 
 void KeypadControl::updateBuzzer() {

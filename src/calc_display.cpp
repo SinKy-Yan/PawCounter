@@ -1,7 +1,10 @@
 #include "calc_display.h"
+#include "graphics/animation/Animation.h"
+#include "graphics/animation/CharSlideAnim.h"
+#include "graphics/animation/MoveToExprAnim.h"
 
 CalcDisplay::CalcDisplay(Arduino_GFX *d, uint16_t w, uint16_t h)
-    : tft(d), screenWidth(w), screenHeight(h) {
+    : tft(d), screenWidth(w), screenHeight(h), _currentAnimation(nullptr) {
     
     // 初始化历史记录
     history[0] = "";  // 最新
@@ -98,4 +101,68 @@ void CalcDisplay::updateExprDirect(const String &expr) {
 
 void CalcDisplay::updateResultDirect(const String &res) {
     lines[3].text = res;
+}
+
+// 动画tick更新
+void CalcDisplay::tick() {
+    if (_currentAnimation != nullptr) {
+        bool continueAnimation = _currentAnimation->tick();
+        if (!continueAnimation) {
+            // 动画结束，清理资源
+            delete _currentAnimation;
+            _currentAnimation = nullptr;
+        }
+    }
+}
+
+// A1/A2动画：字符滑入/滑出
+void CalcDisplay::animateInputChange(const String& oldTxt, const String& newTxt) {
+    // 中断当前动画
+    if (_currentAnimation != nullptr) {
+        _currentAnimation->interrupt();
+        delete _currentAnimation;
+        _currentAnimation = nullptr;
+    }
+    
+    // 判断是滑入还是滑出
+    bool isInsert = newTxt.length() > oldTxt.length();
+    
+    // 创建新动画
+    _currentAnimation = new CharSlideAnim(this, oldTxt, newTxt, isInsert, 3, 200);
+    _currentAnimation->start();
+}
+
+// B动画：数字上移缩小到表达式区
+void CalcDisplay::animateMoveInputToExpr(const String& inputTxt, const String& finalExpr) {
+    // 中断当前动画
+    if (_currentAnimation != nullptr) {
+        _currentAnimation->interrupt();
+        delete _currentAnimation;
+        _currentAnimation = nullptr;
+    }
+    
+    // 创建上移缩小动画
+    _currentAnimation = new MoveToExprAnim(this, inputTxt, finalExpr, 250);
+    _currentAnimation->start();
+}
+
+// 动画辅助方法
+void CalcDisplay::clearLineArea(uint8_t lineIndex) {
+    if (lineIndex >= 4) return;
+    
+    LineConfig &line = lines[lineIndex];
+    
+    // 计算行区域
+    int16_t x = PAD_X;
+    int16_t y = line.y;
+    uint16_t w = screenWidth - PAD_X * 2;
+    uint16_t h = line.charHeight;
+    
+    // 清除区域
+    tft->fillRect(x, y, w, h, COLOR_BG);
+}
+
+uint16_t CalcDisplay::getCharWidth(uint8_t textSize) {
+    // Arduino_GFX标准字符宽度：6像素 * textSize
+    return 6 * textSize;
 }

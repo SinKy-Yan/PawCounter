@@ -11,6 +11,18 @@
 #define DEBUG_MODE                      // 启用调试模式
 // #define ENABLE_BATTERY_MANAGER       // 启用电池管理（调试时可注释）
 
+// =================== 动画配置 ===================
+#define ENABLE_ANIMATIONS 1             // 启用动画系统
+#define ANIMATION_DEFAULT_FPS 15        // 默认动画帧率
+#define MAX_CONCURRENT_ANIMATIONS 3     // 最大并发动画数量
+#define ENABLE_ANIMATION_DEBUG 0        // 启用动画调试输出
+
+// =================== WiFi和OTA配置 ===================
+#ifdef OTA_ENABLED
+#define WIFI_SSID     "2001C_2.4G"     // WiFi网络名称
+#define WIFI_PASSWORD "741852963Su"    // WiFi密码
+#endif
+
 // =================== LCD 引脚定义 ===================
 #define LCD_RST   48
 #define LCD_CS    45

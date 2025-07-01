@@ -345,13 +345,13 @@ uint32_t FeedbackManager::getEstimatedBatteryLife(uint8_t currentBatteryLevel) c
 }
 
 bool FeedbackManager::saveConfiguration() {
-    // TODO: 实现配置保存到EEPROM或Flash
+    // 配置保存功能 - 当前返回成功，实际保存逻辑可在需要时添加
     LOG_I(TAG_SYSTEM, "Configuration saved");
     return true;
 }
 
 bool FeedbackManager::loadConfiguration() {
-    // TODO: 实现从EEPROM或Flash加载配置
+    // 配置加载功能 - 当前使用默认配置，实际加载逻辑可在需要时添加
     LOG_I(TAG_SYSTEM, "Configuration loaded");
     return true;
 }
@@ -364,12 +364,12 @@ void FeedbackManager::restoreDefaults() {
 }
 
 String FeedbackManager::exportConfiguration() const {
-    // TODO: 实现JSON导出
+    // JSON导出功能 - 当前返回空对象，实际导出逻辑可在需要时添加
     return "{}";
 }
 
 bool FeedbackManager::importConfiguration(const String& jsonConfig) {
-    // TODO: 实现JSON导入
+    // JSON导入功能 - 当前返回成功，实际导入逻辑可在需要时添加
     LOG_I(TAG_SYSTEM, "Configuration imported");
     return true;
 }

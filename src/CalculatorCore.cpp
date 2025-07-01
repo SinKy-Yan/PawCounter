@@ -7,10 +7,11 @@
  */
 
 #include "CalculatorCore.h"
-#include "CalculatorDisplay.h"
+#include "CalculatorDisplay_base.h"
 #include "CalculationEngine.h"
 // 移除模式系统相关代码
 #include "KeyboardConfig.h"
+#include "NumberFormatter.h"
 
 // 按键映射表定义（基于实际物理按键编号 1-22）
 // 修改后的布局：Key 19改为清除，Key 15改为向前删除，Key 6改为Tab
@@ -197,7 +198,6 @@ void CalculatorCore::clearEntry() {
     _currentDisplay = "0";
     _hasDecimalPoint = false;
     _state = CalculatorState::INPUT_NUMBER;
-    // updateDisplay(); // 移除重复调用，由调用者负责
 }
 
 void CalculatorCore::clearAll() {
@@ -210,7 +210,6 @@ void CalculatorCore::clearAll() {
     _waitingForOperand = false;
     _lastError = CalculatorError::NONE;
     _state = CalculatorState::INPUT_NUMBER;
-    // updateDisplay(); // 移除重复调用，由调用者负责
 }
 
 void CalculatorCore::updateDisplay() {
@@ -383,14 +382,15 @@ void CalculatorCore::handleFunctionInput(const KeyMapping* mapping) {
                 // 计算完成后，_currentNumber已经是结果
                 double result = _currentNumber;
                 
-                // 在L2显示完整表达式包括等号和结果
+                // 新方案：表达式行显示"公式=结果"格式
                 _expressionDisplay = completeExpression + "=" + formatNumber(result);
+                _currentDisplay = formatNumber(result);   // 结果显示在主显示区
                 _state = CalculatorState::DISPLAY_RESULT;
                 
                 // 将完整表达式添加到历史记录
                 addToHistory(completeExpression, result);
                 
-                CALC_LOG_D("Equals executed: %s = %.6f", completeExpression.c_str(), result);
+                CALC_LOG_D("Equals executed: %s", _expressionDisplay.c_str());
             }
         }
     } else if (String(mapping->label) == "CLEAR") {
@@ -503,30 +503,8 @@ void CalculatorCore::resetInputState() {
 }
 
 String CalculatorCore::formatNumber(double number) const {
-    // 处理非常小的数字
-    if (abs(number) < 0.000001 && number != 0.0) {
-        return String(number, 6);  // 科学计数法
-    }
-    
-    // 检查是否为整数
-    if (number == floor(number) && abs(number) < 1000000) {
-        return String((int)number);  // 整数显示，不带小数点
-    }
-    
-    // 浮点数显示，去除末尾的零
-    String result = String(number, 6);
-    
-    // 移除末尾的零和小数点
-    if (result.indexOf('.') != -1) {
-        while (result.endsWith("0")) {
-            result.remove(result.length() - 1);
-        }
-        if (result.endsWith(".")) {
-            result.remove(result.length() - 1);
-        }
-    }
-    
-    return result;
+    // 使用统一的NumberFormatter进行格式化
+    return NumberFormatter::format(number);
 }
 
 // ============================================================================
@@ -541,7 +519,7 @@ void CalculatorCore::handleFunctionInput(const KeyConfig* keyConfig) {
                    (int)_pendingOperator, _expressionDisplay.c_str());
         
         if (_pendingOperator != Operator::NONE && !_expressionDisplay.isEmpty()) {
-            // 将最后输入的数字添加到表达式中，形成完整表达式
+            // 将最后输入的数字添加到表达式中，形成完整表辽式
             String completeExpression = _expressionDisplay + formatNumber(_currentNumber);
             
             // 执行计算
@@ -549,14 +527,15 @@ void CalculatorCore::handleFunctionInput(const KeyConfig* keyConfig) {
                 // 计算完成后，_currentNumber已经是结果
                 double result = _currentNumber;
                 
-                // 在L2显示完整表达式包括等号和结果
+                // 新方案：表达式行显示"公式=结果"格式
                 _expressionDisplay = completeExpression + "=" + formatNumber(result);
+                _currentDisplay = formatNumber(result);   // 结果显示在主显示区
                 _state = CalculatorState::DISPLAY_RESULT;
                 
                 // 将完整表达式添加到历史记录
                 addToHistory(completeExpression, result);
                 
-                CALC_LOG_D("Equals executed: %s = %.6f", completeExpression.c_str(), result);
+                CALC_LOG_D("Equals executed: %s", _expressionDisplay.c_str());
             }
         }
     } else if (keyConfig->operation == Operator::PERCENT) {

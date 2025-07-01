@@ -20,7 +20,16 @@
       "Bash(sed:*)",
       "Bash(/mnt/c/.platformio/penv/Scripts/pio.exe run --silent)",
       "Bash(python3:*)",
-      "Bash(python test_zpix_font.py:*)"
+      "Bash(python test_zpix_font.py:*)",
+      "Bash(~/.platformio/penv/bin/pio run)",
+      "Bash(platformio run:*)",
+      "Bash(echo $PATH)",
+      "Bash(/Users/sinky/.platformio/penv/bin/pio platform show espressif32)",
+      "Bash(/Users/sinky/.platformio/penv/bin/pio pkg show framework-arduinoespressif32)",
+      "Bash(/Users/sinky/.platformio/penv/bin/pio run -e esp32-s3-devkitm-1-ota)",
+      "Bash(/Users/sinky/.platformio/penv/bin/pio run)",
+      "Bash(/Users/sinky/.platformio/penv/bin/pio run --target clean)",
+      "Bash(mkdir:*)"
     ],
     "deny": []
   }

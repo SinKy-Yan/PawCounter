@@ -54,8 +54,9 @@ bool BuzzerSoundManager::begin() {
     _globalVolume = 50;
     _queueSize = 0;
 
-    // 初始化LEDC通道用于蜂鸣器控制 (使用新版本API)
-    ledcAttach(BUZZ_PIN, 2000, 8);  // 频率2000Hz, 8位分辨率
+    // 初始化LEDC通道用于蜂鸣器控制 (使用兼容API)
+    ledcSetup(BUZZER_CHANNEL, 2000, 8);  // 频率2000Hz, 8位分辨率
+    ledcAttachPin(BUZZ_PIN, BUZZER_CHANNEL);
     LOG_D(TAG_SYSTEM, "LEDC attached to BUZZ_PIN %d", BUZZ_PIN);
 
     // 初始化当前效果实例
@@ -126,7 +127,7 @@ void BuzzerSoundManager::stopSound() {
 void BuzzerSoundManager::pauseSound() {
     if (_currentEffect.active && !_currentEffect.paused) {
         _currentEffect.paused = true;
-        ledcWrite(BUZZ_PIN, 0); // 停止PWM输出
+        ledcWrite(BUZZER_CHANNEL, 0); // 停止PWM输出
         LOG_D(TAG_SYSTEM, "Sound paused");
     }
 }
@@ -264,7 +265,7 @@ void BuzzerSoundManager::stopPlayback(SoundEffectInstance& instance) {
     instance.paused = false;
     
     // 停止PWM输出
-    ledcWrite(BUZZ_PIN, 0);
+    ledcWrite(BUZZER_CHANNEL, 0);
 }
 
 void BuzzerSoundManager::updatePlayback(SoundEffectInstance& instance) {
@@ -276,7 +277,7 @@ void BuzzerSoundManager::updatePlayback(SoundEffectInstance& instance) {
     if (currentTime >= instance.nextUpdate) {
         if (instance.playing) {
             // 当前音符播放结束，停止声音
-            ledcWrite(BUZZ_PIN, 0);
+            ledcWrite(BUZZER_CHANNEL, 0);
             instance.playing = false;
             
             // 准备下一个音符
@@ -329,8 +330,8 @@ void BuzzerSoundManager::playNextNote(SoundEffectInstance& instance) {
         uint8_t duty = volumeToPWMDuty(instance.config.volume);
         
         // 设置频率和开始播放（使用已初始化的通道）
-        ledcWriteTone(BUZZ_PIN, note.frequency);
-        ledcWrite(BUZZ_PIN, duty);
+        ledcWriteTone(BUZZER_CHANNEL, note.frequency);
+        ledcWrite(BUZZER_CHANNEL, duty);
         
         instance.playing = true;
         instance.nextUpdate = millis() + note.duration;

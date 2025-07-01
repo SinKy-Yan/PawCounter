@@ -5,12 +5,13 @@
 
 void BacklightControl::begin() {
     if (!_initialized) {
-        // 配置 LEDC 通道并附加到 GPIO (使用新版本API)
-        ledcAttach(LCD_BL, LEDC_BASE_FREQ, LEDC_TIMER_BIT);
+        // 配置 LEDC 通道并附加到 GPIO (使用兼容API)
+        ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_BIT);
+        ledcAttachPin(LCD_BL, LEDC_CHANNEL_0);
         
         // 设置初始值
         _currentBrightness = 0;
-        ledcWrite(LCD_BL, _currentBrightness);
+        ledcWrite(LEDC_CHANNEL_0, _currentBrightness);
         
         _initialized = true;
         
@@ -29,7 +30,7 @@ void BacklightControl::update() {
     if (elapsedTime >= _fadeDuration) {
         // 渐变结束
         _currentBrightness = _targetBrightness;
-        ledcWrite(LCD_BL, _currentBrightness);
+        ledcWrite(LEDC_CHANNEL_0, _currentBrightness);
         _isFading = false;
         
         #ifdef DEBUG_MODE
@@ -42,7 +43,7 @@ void BacklightControl::update() {
         _currentBrightness = _startBrightness + (brightnessDiff * progress);
         
         // 将当前计算的亮度写入LEDC
-        ledcWrite(LCD_BL, _currentBrightness);
+        ledcWrite(LEDC_CHANNEL_0, _currentBrightness);
         
         #ifdef DEBUG_MODE
         if(elapsedTime % 100 == 0) {  // 每100ms打印一次调试信息
