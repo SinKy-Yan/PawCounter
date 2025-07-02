@@ -73,7 +73,7 @@ public:
      * @param targetFPS 目标帧率
      * @param updateInterval 监控更新间隔(ms)
      */
-    PerformanceMonitor(float targetFPS = 20.0f, unsigned long updateInterval = 1000);
+    PerformanceMonitor(float targetFPS = 30.0f, unsigned long updateInterval = 1000);
 
     /**
      * @brief 开始帧性能监控

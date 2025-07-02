@@ -11,9 +11,9 @@
 CalcDisplay::CalcDisplay(Arduino_GFX *d, uint16_t w, uint16_t h)
     : tft(d), screenWidth(w), screenHeight(h), _currentAnimation(nullptr) {
     
-    // P1阶段：初始化动画系统 - 优化帧率减少闪烁
-    _animationManager = new AnimationManager(3, 12);  // 最大3个并发动画，12FPS减少闪烁
-    _performanceMonitor = new PerformanceMonitor(12.0f, 1000);  // 12FPS目标，1秒更新间隔
+    // P1阶段：初始化动画系统 - 提升帧率到30FPS获得流畅动效
+    _animationManager = new AnimationManager(3, 30);  // 最大3个并发动画，30FPS流畅动效
+    _performanceMonitor = new PerformanceMonitor(30.0f, 1000);  // 30FPS目标，1秒更新间隔
     
     // 初始化历史记录
     history[0] = "";  // 最新
@@ -122,6 +122,13 @@ void CalcDisplay::refresh() {
     for (uint8_t i = 0; i < 4; i++) {
         drawLine(i);
     }
+    
+    // 如果使用Canvas，需要flush到屏幕
+    // 检查tft是否为Arduino_Canvas类型
+    extern Arduino_Canvas *canvas;
+    if (canvas && tft == canvas) {
+        canvas->flush();
+    }
 }
 
 // 直接数据更新方法（不立即刷新）
@@ -186,6 +193,12 @@ void CalcDisplay::tick() {
     if (_performanceMonitor) {
         _performanceMonitor->endFrame();
         _performanceMonitor->update(activeAnimCount);
+    }
+
+    // --- 推送 Canvas 缓冲到屏幕 ---
+    extern Arduino_Canvas *canvas;
+    if (canvas && tft == canvas) {
+        canvas->flush();
     }
 }
 

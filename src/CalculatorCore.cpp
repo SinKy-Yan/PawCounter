@@ -175,6 +175,11 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
     }
     
     updateDisplay();
+    
+    // 调试日志：确认按键处理状态
+    Serial.printf("[Core] Key %d handled, mainText=%s state=%d\n",
+                  keyPosition, getCurrentDisplay().c_str(), (int)getState());
+    
     return true;
 }
 
@@ -214,6 +219,8 @@ void CalculatorCore::clearAll() {
 
 void CalculatorCore::updateDisplay() {
     if (_display) {
+        Serial.printf("[Core] updateDisplay called: display='%s', expr='%s', state=%d\n",
+                      _currentDisplay.c_str(), _expressionDisplay.c_str(), (int)_state);
         _display->updateDisplay(_currentDisplay, _expressionDisplay, _state);
         
         if (_lastError != CalculatorError::NONE) {
@@ -239,6 +246,14 @@ void CalculatorCore::updateDisplay() {
 
 void CalculatorCore::update() {
     // 定期更新逻辑（如果需要）
+    
+    // 调试：确认update被调用（但不要频繁打印）
+    static unsigned long lastDebugPrint = 0;
+    if (millis() - lastDebugPrint > 5000) { // 每5秒打印一次
+        lastDebugPrint = millis();
+        Serial.printf("[Core] update() called, display='%s', state=%d\n",
+                      _currentDisplay.c_str(), (int)_state);
+    }
 }
 
 // 私有方法实现

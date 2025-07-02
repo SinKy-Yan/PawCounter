@@ -33,6 +33,9 @@ public:
     bool begin() override { return true; }
     
     void updateDisplay(const String& mainText, const String& expression, CalculatorState state) override {
+        Serial.printf("[DisplayAdapter] updateDisplay called: mainText='%s', expr='%s', state=%d\n",
+                      mainText.c_str(), expression.c_str(), (int)state);
+                      
         // 检测变化并触发相应动画
         bool mainTextChanged = (mainText != _prevMainText);
         bool expressionChanged = (expression != _prevExpression);
@@ -119,7 +122,7 @@ public:
         Serial.println("================");
         }
         
-        // 更新状态缓存
+        // 始终更新状态缓存，避免重复触发动画
         _prevMainText = mainText;
         _prevExpression = expression;
         _prevState = state;

@@ -12,6 +12,9 @@ void CharSlideAnim::start() {
     // 计算动画参数
     calculateAnimationParams();
     
+    // 清空目标行，避免旧内容残影
+    _display->clearLineArea(_lineIndex, true);
+    
     // 调用基类开始动画
     Animation::start();
 }

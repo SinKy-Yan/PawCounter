@@ -40,7 +40,7 @@ public:
      * @param maxConcurrent 最大并发动画数
      * @param targetFPS 目标帧率
      */
-    AnimationManager(uint8_t maxConcurrent = 3, uint8_t targetFPS = 20);
+    AnimationManager(uint8_t maxConcurrent = 3, uint8_t targetFPS = 30);
     
     /**
      * @brief 析构函数

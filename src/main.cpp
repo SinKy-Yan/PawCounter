@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <Arduino_GFX_Library.h>
 #include <Wire.h>
+#include "databus/Arduino_ESP32SPIDMA.h"
+#include "canvas/Arduino_Canvas.h"
 
 // 项目头文件
 #include "config.h"
@@ -18,6 +20,7 @@
 // 全局对象
 Arduino_DataBus *bus = nullptr;
 Arduino_GFX *gfx = nullptr;
+Arduino_Canvas *canvas = nullptr;
 KeypadControl keypad;
 BatteryManager batteryManager;
 
@@ -128,7 +131,9 @@ void setup() {
     // 10. 创建显示管理器
     Serial.println("10. 初始化显示管理器...");
     Serial.println("  - 使用简化CalcDisplay界面");
-    display = std::unique_ptr<CalcDisplay>(new CalcDisplay(gfx, DISPLAY_WIDTH, DISPLAY_HEIGHT));
+    // 使用Canvas优化显示性能，如果Canvas不可用则回退到直接使用gfx
+    Arduino_GFX* displayTarget = canvas ? canvas : gfx;
+    display = std::unique_ptr<CalcDisplay>(new CalcDisplay(displayTarget, DISPLAY_WIDTH, DISPLAY_HEIGHT));
     displayAdapter = std::make_shared<CalcDisplayAdapter>(display.get());
     LOG_I(TAG_MAIN, "显示管理器初始化完成");
     
@@ -203,25 +208,50 @@ void initDisplay() {
     digitalWrite(LCD_BL, LOW); // 先关闭背光
     
     Serial.println("  - 初始化显示总线...");
-    bus = new Arduino_SWSPI(LCD_DC, LCD_CS, LCD_SCK, LCD_MOSI);
+    // 升级到DMA SPI，80 MHz
+    bus = new Arduino_ESP32SPIDMA(LCD_DC, LCD_CS, LCD_SCK, LCD_MOSI,
+                                  /*miso*/ -1, /*host*/ SPI3_HOST, false);
     
     Serial.println("  - 初始化显示驱动...");
     gfx = new Arduino_NV3041A(bus,
                              LCD_RST,
                              2,             // rotation: 0~3
                              true,          // IPS 屏
-                             480,           // LCD_WIDTH
-                             130,           // LCD_HEIGHT
+                             DISPLAY_WIDTH, // 480
+                             DISPLAY_HEIGHT,// 130
                              0,             // 水平偏移（col_offset）
                              0,
                              0,
                              140);          // 垂直偏移（row_offset）- 向上扩展5像素
     
     Serial.println("  - 启动显示硬件...");
-    if (!gfx->begin()) {
+    if (!gfx->begin(80 * 1000 * 1000UL)) {  // 80 MHz
         Serial.println("❌ 显示硬件启动失败！");
         LOG_E(TAG_MAIN, "显示硬件启动失败");
         return;
+    }
+    
+    // 创建全屏Canvas缓冲区
+    Serial.println("  - 创建Canvas缓冲区...");
+    // 去除输出偏移，Canvas直接输出到(0,0)
+    canvas = new Arduino_Canvas(DISPLAY_WIDTH, DISPLAY_HEIGHT, gfx);
+    if (!canvas->begin(GFX_SKIP_OUTPUT_BEGIN)) {
+        Serial.println("❌ Canvas初始化失败！回退到软件SPI");
+        delete canvas;
+        canvas = nullptr;
+        delete bus;
+        // 回退到软件SPI
+        bus = new Arduino_SWSPI(LCD_DC, LCD_CS, LCD_SCK, LCD_MOSI);
+        delete gfx;
+        gfx = new Arduino_NV3041A(bus, LCD_RST, 2, true, DISPLAY_WIDTH, DISPLAY_HEIGHT, 0, 0, 0, 140);
+        if (!gfx->begin()) {
+            Serial.println("❌ 回退显示硬件启动也失败！");
+            return;
+        }
+    } else {
+        Serial.printf("✅ DMA Canvas创建成功: %dx%d, 内存占用: %d KB\n", 
+                     DISPLAY_WIDTH, DISPLAY_HEIGHT, 
+                     (DISPLAY_WIDTH * DISPLAY_HEIGHT * 2) / 1024);
     }
     
     // 延迟确保初始化完成
@@ -231,7 +261,12 @@ void initDisplay() {
     Serial.println("  - 背光硬件准备完成，等待软件控制");
     
     // 清屏
-    gfx->fillScreen(0x0000); // 黑色
+    if (canvas) {
+        canvas->fillScreen(0x0000);
+        canvas->flush();
+    } else {
+        gfx->fillScreen(0x0000);
+    }
     
     Serial.println("✅ 显示系统初始化完成");
 }
@@ -275,6 +310,9 @@ void onKeyEvent(KeyEventType type, uint8_t key, uint8_t* combo, uint8_t count) {
     if (type == KEY_EVENT_PRESS) {
         if (calculator) {
             calculator->handleKeyInput(key);
+            
+            // 移除强制刷新，避免在动画执行期间提前绘制目标文本导致闪烁/重影
+            // 如果后续需要手动刷新，可在确认无活动动画时调用 displayAdapter->updateDisplay()
         }
         
         // 播放按键反馈
