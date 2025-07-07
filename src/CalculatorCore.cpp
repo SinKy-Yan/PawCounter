@@ -57,29 +57,29 @@ CalculatorCore::CalculatorCore()
     , _memoryValue(0.0)
     , _hasMemoryValue(false) {
     
-    CALC_LOG_I("Calculator core initialized");
+    CALC_LOG_I("计算器核心对象创建完成");
 }
 
 CalculatorCore::~CalculatorCore() {
-    CALC_LOG_I("Calculator core destroyed");
+    CALC_LOG_I("计算器核心被销毁");
 }
 
 bool CalculatorCore::begin() {
-    CALC_LOG_I("Starting calculator core initialization");
+    CALC_LOG_I("开始初始化计算器核心");
     
     // 初始化键盘配置管理器
     if (!keyboardConfig.begin()) {
-        CALC_LOG_E("Failed to initialize keyboard configuration");
+        CALC_LOG_E("键盘配置初始化失败");
         return false;
     }
     
     // 验证关键按键配置
     const KeyConfig* equalsKey = keyboardConfig.getKeyConfig(22, KeyLayer::PRIMARY);
     if (equalsKey) {
-        CALC_LOG_I("Equals key (22) configured: symbol='%s', type=%d, operation=%d", 
+        CALC_LOG_I("等号键 (22) 已配置: 符号='%s', 类型=%d, 操作=%d", 
                    equalsKey->symbol.c_str(), (int)equalsKey->type, (int)equalsKey->operation);
     } else {
-        CALC_LOG_E("Equals key (22) not found in configuration!");
+        CALC_LOG_E("等号键 (22) 在配置中未找到！");
     }
     
     // 打印配置信息（调试用）
@@ -95,16 +95,16 @@ bool CalculatorCore::begin() {
     _history.clear();
     _history.reserve(_maxHistorySize);
     
-    CALC_LOG_I("Calculator core initialization completed");
+    CALC_LOG_I("计算器核心初始化完成");
     return true;
 }
 
 bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
-    CALC_LOG_D("Handling key input: position %d, long press: %d", keyPosition, isLongPress);
+    CALC_LOG_D("处理按键输入: 位置 %d, 长按: %d", keyPosition, isLongPress);
     
     // 首先检查是否为Tab键（层级切换）
     if (keyPosition == keyboardConfig.getLayoutConfig().tabKeyPosition) {
-        CALC_LOG_D("Tab key detected, delegating to keyboard config");
+        CALC_LOG_D("检测到Tab键，委托给键盘配置处理");
         return keyboardConfig.handleTabKey(isLongPress);
     }
     
@@ -112,15 +112,15 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
     const KeyConfig* keyConfig = keyboardConfig.getKeyConfig(keyPosition, keyboardConfig.getCurrentLayer());
     if (!keyConfig) {
         // 如果当前层级没有配置，尝试从主层级获取
-        CALC_LOG_D("Key not found in current layer, trying PRIMARY layer");
+        CALC_LOG_D("当前层级中未找到按键，尝试主层级");
         keyConfig = keyboardConfig.getKeyConfig(keyPosition, KeyLayer::PRIMARY);
         if (!keyConfig) {
-            CALC_LOG_W("No key configuration found for position %d", keyPosition);
+            CALC_LOG_W("位置 %d 没有找到按键配置", keyPosition);
             return false;
         }
     }
     
-    CALC_LOG_V("Key mapped to: %s (type: %d, layer: %d)", 
+    CALC_LOG_V("按键映射到: %s (类型: %d, 层级: %d)", 
                keyConfig->symbol.c_str(), (int)keyConfig->type, (int)keyboardConfig.getCurrentLayer());
     
     // 清除错误状态
@@ -133,7 +133,7 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
     switch (keyConfig->type) {
         case KeyType::NUMBER:
             if (!keyConfig->symbol.isEmpty()) {
-                CALC_LOG_D("Processing NUMBER key: position=%d, symbol='%s'", keyPosition, keyConfig->symbol.c_str());
+                CALC_LOG_D("处理数字键: 位置=%d, 符号='%s'", keyPosition, keyConfig->symbol.c_str());
                 handleDigitInput(keyConfig->symbol[0]);
             }
             break;
@@ -170,7 +170,7 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
             break;
             
         default:
-            CALC_LOG_W("Unhandled key type: %d", (int)keyConfig->type);
+            CALC_LOG_W("未处理的按键类型: %d", (int)keyConfig->type);
             return false;
     }
     
@@ -185,12 +185,12 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
 
 void CalculatorCore::setDisplay(std::shared_ptr<CalculatorDisplay> display) {
     _display = display;
-    CALC_LOG_I("Display manager set");
+    CALC_LOG_I("显示管理器已设置");
 }
 
 void CalculatorCore::setCalculationEngine(std::shared_ptr<CalculationEngine> engine) {
     _engine = engine;
-    CALC_LOG_I("Calculation engine set");
+    CALC_LOG_I("计算引擎已设置");
 }
 
 // 模式系统相关函数已移除
@@ -198,7 +198,7 @@ void CalculatorCore::setCalculationEngine(std::shared_ptr<CalculationEngine> eng
 // bool CalculatorCore::switchMode(...)
 
 void CalculatorCore::clearEntry() {
-    CALC_LOG_D("Clear entry");
+    CALC_LOG_D("清除当前输入");
     _inputBuffer = "";
     _currentDisplay = "0";
     _hasDecimalPoint = false;
@@ -206,7 +206,7 @@ void CalculatorCore::clearEntry() {
 }
 
 void CalculatorCore::clearAll() {
-    CALC_LOG_D("Clear all");
+    CALC_LOG_D("清除所有内容");
     clearEntry();
     _expressionDisplay = "";
     _currentNumber = 0.0;
@@ -227,16 +227,16 @@ void CalculatorCore::updateDisplay() {
             String errorMsg = "Error: ";
             switch (_lastError) {
                 case CalculatorError::DIVISION_BY_ZERO:
-                    errorMsg += "Division by zero";
+                    errorMsg += "除数为零";
                     break;
                 case CalculatorError::OVERFLOW:
-                    errorMsg += "Overflow";
+                    errorMsg += "数据溢出";
                     break;
                 case CalculatorError::INVALID_OPERATION:
-                    errorMsg += "Invalid operation";
+                    errorMsg += "无效操作";
                     break;
                 default:
-                    errorMsg += "Unknown error";
+                    errorMsg += "未知错误";
                     break;
             }
             _display->showError(_lastError, errorMsg);
@@ -267,7 +267,7 @@ const KeyMapping* CalculatorCore::findKeyMapping(uint8_t position) const {
 }
 
 void CalculatorCore::handleDigitInput(char digit) {
-    CALC_LOG_D("Digit input: '%c', current state=%d, buffer='%s'", digit, (int)_state, _inputBuffer.c_str());
+    CALC_LOG_D("数字输入: '%c', 当前状态=%d, 缓冲区='%s'", digit, (int)_state, _inputBuffer.c_str());
     
     if (_state == CalculatorState::DISPLAY_RESULT) {
         // 如果当前显示结果，输入数字开始全新计算
@@ -279,7 +279,7 @@ void CalculatorCore::handleDigitInput(char digit) {
         _previousNumber = 0.0;
         _waitingForOperand = false;
         
-        CALC_LOG_D("Starting new calculation after result display");
+        CALC_LOG_D("结果显示后开始新计算");
     } else if (_state == CalculatorState::INPUT_OPERATOR) {
         // 如果刚输入运算符，输入数字开始新输入
         _inputBuffer = "";
@@ -311,11 +311,11 @@ void CalculatorCore::handleDigitInput(char digit) {
     _currentDisplay = _inputBuffer;
     _currentNumber = _inputBuffer.toDouble();
     
-    CALC_LOG_D("After digit input: buffer='%s', number=%.6f", _inputBuffer.c_str(), _currentNumber);
+    CALC_LOG_D("数字输入后: 缓冲区='%s', 数字=%.6f", _inputBuffer.c_str(), _currentNumber);
 }
 
 void CalculatorCore::handleOperatorInput(Operator op) {
-    CALC_LOG_V("Operator input: %d", (int)op);
+    CALC_LOG_V("运算符输入: %d", (int)op);
     
     String opSymbol = "";
     switch(op) {
@@ -332,7 +332,7 @@ void CalculatorCore::handleOperatorInput(Operator op) {
         _previousNumber = _currentNumber;
         _pendingOperator = op;
         
-        CALC_LOG_D("Starting new expression after result: %s", _expressionDisplay.c_str());
+        CALC_LOG_D("结果后开始新表达式: %s", _expressionDisplay.c_str());
         
     } else if (_state == CalculatorState::INPUT_NUMBER) {
         // 如果有待处理的运算符，先执行之前的计算
@@ -369,7 +369,7 @@ void CalculatorCore::handleOperatorInput(Operator op) {
             _expressionDisplay = _expressionDisplay.substring(0, _expressionDisplay.length() - 1) + opSymbol;
         }
         _pendingOperator = op;
-        CALC_LOG_D("Operator changed in expression: %s", _expressionDisplay.c_str());
+        CALC_LOG_D("表达式中的运算符已更改: %s", _expressionDisplay.c_str());
     }
     
     // 统一设置状态
@@ -381,11 +381,11 @@ void CalculatorCore::handleOperatorInput(Operator op) {
     _inputBuffer = "";
     _hasDecimalPoint = false;
     
-    CALC_LOG_D("Expression accumulated: %s, current display reset to 0", _expressionDisplay.c_str());
+    CALC_LOG_D("表达式累计: %s, 当前显示重置为 0", _expressionDisplay.c_str());
 }
 
 void CalculatorCore::handleFunctionInput(const KeyMapping* mapping) {
-    CALC_LOG_V("Function input: %s", mapping->label);
+    CALC_LOG_V("功能输入: %s", mapping->label);
     
     if (mapping->operation == Operator::EQUALS) {
         if (_pendingOperator != Operator::NONE && !_expressionDisplay.isEmpty()) {
@@ -405,7 +405,7 @@ void CalculatorCore::handleFunctionInput(const KeyMapping* mapping) {
                 // 将完整表达式添加到历史记录
                 addToHistory(completeExpression, result);
                 
-                CALC_LOG_D("Equals executed: %s", _expressionDisplay.c_str());
+                CALC_LOG_D("等号执行: %s", _expressionDisplay.c_str());
             }
         }
     } else if (String(mapping->label) == "CLEAR") {
@@ -461,7 +461,7 @@ bool CalculatorCore::performCalculation() {
         return false;
     }
     
-    CALC_LOG_D("Performing calculation: %.6f %d %.6f", 
+    CALC_LOG_D("执行计算: %.6f %d %.6f", 
                _previousNumber, (int)_pendingOperator, _currentNumber);
     
     auto result = _engine->calculate(_previousNumber, _currentNumber, _pendingOperator);
@@ -478,7 +478,7 @@ bool CalculatorCore::performCalculation() {
         _inputBuffer = "";
         _hasDecimalPoint = false;
         
-        CALC_LOG_D("Calculation result: %.6f", _currentNumber);
+        CALC_LOG_D("计算结果: %.6f", _currentNumber);
         return true;
     } else {
         setError(result.error);
@@ -489,7 +489,7 @@ bool CalculatorCore::performCalculation() {
 void CalculatorCore::setError(CalculatorError error) {
     _lastError = error;
     _state = CalculatorState::ERROR;
-    CALC_LOG_E("Calculator error: %d", (int)error);
+    CALC_LOG_E("计算器错误: %d", (int)error);
 }
 
 void CalculatorCore::addToHistory(const String& expression, double result) {
@@ -508,7 +508,7 @@ void CalculatorCore::addToHistory(const String& expression, double result) {
         _history.erase(_history.begin());
     }
     
-    CALC_LOG_D("Added to history: %s = %.6f", expression.c_str(), result);
+    CALC_LOG_D("已添加到历史记录: %s = %.6f", expression.c_str(), result);
 }
 
 void CalculatorCore::resetInputState() {
@@ -527,10 +527,10 @@ String CalculatorCore::formatNumber(double number) const {
 // ============================================================================
 
 void CalculatorCore::handleFunctionInput(const KeyConfig* keyConfig) {
-    CALC_LOG_V("Function input (new): %s", keyConfig->label.c_str());
+    CALC_LOG_V("功能输入 (新): %s", keyConfig->label.c_str());
     
     if (keyConfig->operation == Operator::EQUALS) {
-        CALC_LOG_D("Equals key pressed. Pending operator: %d, Expression: '%s'", 
+        CALC_LOG_D("等号键被按下. 待处理运算符: %d, 表达式: '%s'", 
                    (int)_pendingOperator, _expressionDisplay.c_str());
         
         if (_pendingOperator != Operator::NONE && !_expressionDisplay.isEmpty()) {
@@ -550,7 +550,7 @@ void CalculatorCore::handleFunctionInput(const KeyConfig* keyConfig) {
                 // 将完整表达式添加到历史记录
                 addToHistory(completeExpression, result);
                 
-                CALC_LOG_D("Equals executed: %s", _expressionDisplay.c_str());
+                CALC_LOG_D("等号执行: %s", _expressionDisplay.c_str());
             }
         }
     } else if (keyConfig->operation == Operator::PERCENT) {
@@ -569,18 +569,18 @@ void CalculatorCore::handleFunctionInput(const KeyConfig* keyConfig) {
         }
     } else {
         // 处理其他自定义函数
-        CALC_LOG_I("Custom function: %s", keyConfig->functionName.c_str());
+        CALC_LOG_I("自定义功能: %s", keyConfig->functionName.c_str());
         // 这里可以扩展其他功能
     }
 }
 
 void CalculatorCore::handleClear() {
-    CALC_LOG_D("Clear operation");
+    CALC_LOG_D("清除操作");
     clearAll();
 }
 
 void CalculatorCore::handleBackspace() {
-    CALC_LOG_D("Backspace operation");
+    CALC_LOG_D("退格操作");
     
     if (_state == CalculatorState::INPUT_NUMBER && !_inputBuffer.isEmpty()) {
         // 删除最后一个字符
@@ -602,7 +602,7 @@ void CalculatorCore::handleBackspace() {
             _currentDisplay = _inputBuffer;
         }
         
-        CALC_LOG_V("After backspace: buffer='%s', number=%.6f", 
+        CALC_LOG_V("退格后: 缓冲区='%s', 数字=%.6f", 
                    _inputBuffer.c_str(), _currentNumber);
     }
 }

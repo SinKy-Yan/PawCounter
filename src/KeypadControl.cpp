@@ -81,25 +81,25 @@ KeypadControl::KeypadControl()
 }
 
 void KeypadControl::begin() {
-    KEYPAD_LOG_I("Initializing keypad control system");
+    KEYPAD_LOG_I("正在初始化按键控制系统");
     
     // 初始化引脚
     pinMode(SCAN_PL_PIN, OUTPUT);
     pinMode(SCAN_CE_PIN, OUTPUT);
     pinMode(SCAN_CLK_PIN, OUTPUT);
     pinMode(SCAN_MISO_PIN, INPUT);
-    KEYPAD_LOG_D("GPIO pins configured");
+    KEYPAD_LOG_D("GPIO引脚配置完成");
 
     // 设置初始状态
     digitalWrite(SCAN_PL_PIN, HIGH);
     digitalWrite(SCAN_CE_PIN, LOW);
     digitalWrite(SCAN_CLK_PIN, LOW);
-    KEYPAD_LOG_D("Initial pin states set");
+    KEYPAD_LOG_D("初始引脚状态设置完成");
 
     // 蜂鸣器由 BuzzerSoundManager 统一管理，此处不再初始化
-    KEYPAD_LOG_D("Buzzer managed by BuzzerSoundManager");
+    KEYPAD_LOG_D("蜂鸣器由BuzzerSoundManager统一管理");
     
-    KEYPAD_LOG_I("Keypad control system initialized successfully");
+    KEYPAD_LOG_I("按键控制系统初始化成功");
 }
 
 void KeypadControl::update() {
@@ -113,7 +113,7 @@ void KeypadControl::update() {
         // 只在状态改变时输出调试信息，避免刷屏
         static uint32_t lastDebugState = 0xFFFFFF;
         if (_currentState != lastDebugState) {
-            KEYPAD_LOG_V("Raw scan state: 0x%06X", _currentState);
+            KEYPAD_LOG_V("原始扫描状态: 0x%06X", _currentState);
             lastDebugState = _currentState;
         }
         
@@ -150,7 +150,7 @@ void KeypadControl::update() {
 void KeypadControl::checkKeyStates(uint32_t buttonState) {
     _pressedKeyCount = 0;
     
-    KEYPAD_LOG_V("Checking key states: 0x%06X", buttonState);
+    KEYPAD_LOG_V("检查按键状态: 0x%06X", buttonState);
     
     // 检查每个按键的状态变化
     for (uint8_t i = 0; i < 22; i++) {
@@ -158,7 +158,7 @@ void KeypadControl::checkKeyStates(uint32_t buttonState) {
         
         // 输出详细的位检查信息
         if (isPressed) {
-            KEYPAD_LOG_V("Key %d (pos %d, bit %d, mask 0x%06X) detected as pressed", 
+            KEYPAD_LOG_V("按键 %d (位置 %d, 位 %d, 掩码 0x%06X) 检测为按下状态", 
                         i + 1, KEY_POSITIONS[i], KEY_POSITIONS[i] - 1, 
                         1UL << (KEY_POSITIONS[i] - 1));
         }
@@ -231,22 +231,22 @@ void KeypadControl::handleKeyEvent(KeyEventType type, uint8_t key) {
     // 使用日志系统输出按键事件
     switch (type) {
         case KEY_EVENT_PRESS:
-            KEYPAD_LOG_I("Key %d PRESSED", key);
+            KEYPAD_LOG_I("按键 %d 被按下", key);
             break;
         case KEY_EVENT_RELEASE:
-            KEYPAD_LOG_I("Key %d RELEASED", key);
+            KEYPAD_LOG_I("按键 %d 被释放", key);
             break;
         case KEY_EVENT_LONGPRESS:
-            KEYPAD_LOG_I("Key %d LONG PRESSED", key);
+            KEYPAD_LOG_I("按键 %d 长按", key);
             break;
         case KEY_EVENT_REPEAT:
-            KEYPAD_LOG_D("Key %d REPEAT", key);
+            KEYPAD_LOG_D("按键 %d 重复", key);
             break;
         case KEY_EVENT_COMBO:
-            KEYPAD_LOG_I("Key %d COMBO", key);
+            KEYPAD_LOG_I("按键 %d 组合键", key);
             break;
         default:
-            KEYPAD_LOG_W("Key %d UNKNOWN EVENT", key);
+            KEYPAD_LOG_W("按键 %d 未知事件", key);
             break;
     }
     
@@ -316,7 +316,7 @@ uint8_t KeypadControl::getVolumeDuty(BuzzerVolume volume) const {
 
 void KeypadControl::startBuzzer(uint16_t freq, uint16_t duration) {
     // 蜂鸣器功能已移至 BuzzerSoundManager，此方法保留接口兼容性
-    KEYPAD_LOG_D("Buzzer call redirected to BuzzerSoundManager (freq=%d, duration=%d)", freq, duration);
+    KEYPAD_LOG_D("蜂鸣器调用被重定向到BuzzerSoundManager (频率=%d, 持续时间=%d)", freq, duration);
     // 实际蜂鸣器控制由 BuzzerSoundManager 处理
 }
 
@@ -484,52 +484,52 @@ uint8_t KeypadControl::getPressedKeys(uint8_t* keyBuffer, uint8_t bufferSize) co
 
 #ifdef DEBUG_MODE
 void KeypadControl::testAllBits() {
-    Serial.println(F("=== Testing all 24 bits ==="));
+    Serial.println(F("=== 测试所有 24 位 ==="));
     uint32_t state = readShiftRegisters();
-    Serial.print(F("Raw register state: 0x"));
+    Serial.print(F("原始寄存器状态: 0x"));
     Serial.println(state, HEX);
     
     for (int bit = 0; bit < 24; bit++) {
         bool bitState = !(state & (1UL << bit));  // 按键按下时为低电平
         if (bitState) {
-            Serial.print(F("Bit "));
+            Serial.print(F("位 "));
             Serial.print(bit);
-            Serial.println(F(" is active (pressed)"));
+            Serial.println(F(" 激活 (按下)"));
         }
     }
-    Serial.println(F("=== End test ==="));
+    Serial.println(F("=== 测试结束 ==="));
 }
 
 void KeypadControl::printDebugInfo() {
-    Serial.println(F("KeypadControl Debug Info:"));
-    Serial.print(F("Current State: 0x"));
+    Serial.println(F("键盘控制调试信息:"));
+    Serial.print(F("当前状态: 0x"));
     Serial.println(_currentState, HEX);
-    Serial.print(F("Pressed Keys: "));
+    Serial.print(F("按下的按键: "));
     for (uint8_t i = 0; i < _pressedKeyCount; i++) {
         Serial.print(_pressedKeys[i]);
         Serial.print(" ");
     }
     Serial.println();
     
-    Serial.println(F("Active LED Effects:"));
+    Serial.println(F("活跃的LED效果:"));
     for (uint8_t i = 0; i < NUM_LEDS; i++) {
         if (_ledEffects[i].active) {
             Serial.print(F("LED "));
             Serial.print(i);
-            Serial.print(F(": Mode="));
+            Serial.print(F(": 模式="));
             Serial.print(_ledEffects[i].mode);
             Serial.println();
         }
     }
 
-    Serial.println(F("Buzzer Config:"));
-    Serial.print(F("Enabled: "));
+    Serial.println(F("蜂鸣器配置:"));
+    Serial.print(F("启用: "));
     Serial.println(_buzzerConfig.enabled);
-    Serial.print(F("Follow Keypress: "));
+    Serial.print(F("跟随按键: "));
     Serial.println(_buzzerConfig.followKeypress);
-    Serial.print(F("Dual Tone: "));
+    Serial.print(F("双音调: "));
     Serial.println(_buzzerConfig.dualTone);
-    Serial.print(F("Volume: "));
+    Serial.print(F("音量: "));
     Serial.println(_buzzerConfig.volume);
 }
 #endif

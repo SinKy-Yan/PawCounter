@@ -16,7 +16,7 @@ void BacklightControl::begin() {
         _initialized = true;
         
         #ifdef DEBUG_MODE
-        Serial.println("Backlight initialized on GPIO " + String(LCD_BL));
+        Serial.println("背光控制器初始化完成");
         #endif
     }
 }
@@ -34,7 +34,7 @@ void BacklightControl::update() {
         _isFading = false;
         
         #ifdef DEBUG_MODE
-        Serial.printf("Fade complete. Brightness: %d\n", _currentBrightness);
+        Serial.printf("渐变完成. 亮度: %d\n", _currentBrightness);
         #endif
     } else {
         // 计算当前应该的亮度，使用浮点数确保平滑渐变
@@ -47,7 +47,7 @@ void BacklightControl::update() {
         
         #ifdef DEBUG_MODE
         if(elapsedTime % 100 == 0) {  // 每100ms打印一次调试信息
-            Serial.printf("Fading... Progress: %.2f%%, Brightness: %d\n", 
+            Serial.printf("渐变中... 进度: %.2f%%, 亮度: %d\n", 
                         progress * 100, _currentBrightness);
         }
         #endif
@@ -78,7 +78,7 @@ bool BacklightControl::setBacklight(uint8_t targetPercent, float fadeTime) {
     _isFading = true;
 
     #ifdef DEBUG_MODE
-    Serial.printf("Starting fade from %d to %d over %.0fms\n", 
+    Serial.printf("开始渐变从 %d 到 %d 持续 %.0f毫秒\n", 
                  _startBrightness, _targetBrightness, fadeTime);
     #endif
 

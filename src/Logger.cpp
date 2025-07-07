@@ -67,10 +67,9 @@ bool Logger::begin(const LoggerConfig& config) {
     _initialized = true;
     
     // 输出系统启动日志
-    info(TAG_SYSTEM, "Logger system initialized");
-    info(TAG_SYSTEM, "Log level: %s", getLevelString(_config.level));
-    info(TAG_SYSTEM, "Color output: %s", _config.colorOutput ? "enabled" : "disabled");
-    info(TAG_SYSTEM, "Baud rate: %lu", _config.baudRate);
+    info(TAG_SYSTEM, "日志级别: %s", getLevelString(_config.level));
+    info(TAG_SYSTEM, "彩色输出: %s", _config.colorOutput ? "已启用" : "已禁用");
+    info(TAG_SYSTEM, "波特率: %lu", _config.baudRate);
     
     return true;
 }
@@ -78,17 +77,17 @@ bool Logger::begin(const LoggerConfig& config) {
 void Logger::setLevel(log_level_t level) {
     _config.level = level;
     esp_log_level_set("*", toEspLogLevel(level));
-    info(TAG_SYSTEM, "Global log level set to: %s", getLevelString(level));
+    info(TAG_SYSTEM, "全局日志级别设置为: %s", getLevelString(level));
 }
 
 void Logger::setTagLevel(const char* tag, log_level_t level) {
     esp_log_level_set(tag, toEspLogLevel(level));
-    info(TAG_SYSTEM, "Log level for tag '%s' set to: %s", tag, getLevelString(level));
+    info(TAG_SYSTEM, "标签 '%s' 的日志级别设置为: %s", tag, getLevelString(level));
 }
 
 void Logger::setColorOutput(bool enable) {
     _config.colorOutput = enable;
-    info(TAG_SYSTEM, "Color output %s", enable ? "enabled" : "disabled");
+    info(TAG_SYSTEM, "彩色输出 %s", enable ? "已启用" : "已禁用");
 }
 
 void Logger::setCustomFormat(bool enable) {
@@ -98,7 +97,7 @@ void Logger::setCustomFormat(bool enable) {
     } else {
         esp_log_set_vprintf(vprintf);
     }
-    info(TAG_SYSTEM, "Custom log format %s", enable ? "enabled" : "disabled");
+    info(TAG_SYSTEM, "自定义日志格式 %s", enable ? "已启用" : "已禁用");
 }
 
 esp_log_level_t Logger::toEspLogLevel(log_level_t level) {
@@ -115,13 +114,13 @@ esp_log_level_t Logger::toEspLogLevel(log_level_t level) {
 
 const char* Logger::getLevelString(log_level_t level) {
     switch (level) {
-        case LOG_LEVEL_NONE:    return "NONE";
-        case LOG_LEVEL_ERROR:   return "ERROR";
-        case LOG_LEVEL_WARN:    return "WARN";
-        case LOG_LEVEL_INFO:    return "INFO";
-        case LOG_LEVEL_DEBUG:   return "DEBUG";
-        case LOG_LEVEL_VERBOSE: return "VERBOSE";
-        default:                return "UNKNOWN";
+        case LOG_LEVEL_NONE:    return "无";
+        case LOG_LEVEL_ERROR:   return "错误";
+        case LOG_LEVEL_WARN:    return "警告";
+        case LOG_LEVEL_INFO:    return "信息";
+        case LOG_LEVEL_DEBUG:   return "调试";
+        case LOG_LEVEL_VERBOSE: return "详细";
+        default:                return "未知";
     }
 }
 

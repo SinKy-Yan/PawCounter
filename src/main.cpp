@@ -9,8 +9,6 @@
 #include "Logger.h"
 #include "BackLightControl.h"
 #include "KeypadControl.h"
-#include "BatteryManager.h"
-#include "FeedbackManager.h"
 #include "CalculatorCore.h"
 #include "calc_display.h"
 #include "CalcDisplayAdapter.h"
@@ -22,7 +20,6 @@ Arduino_DataBus *bus = nullptr;
 Arduino_GFX *gfx = nullptr;
 Arduino_Canvas *canvas = nullptr;
 KeypadControl keypad;
-BatteryManager batteryManager;
 
 // LED数组定义（在config.h中声明为extern）
 CRGB leds[NUM_LEDS];
@@ -46,16 +43,8 @@ void setup() {
     delay(1000); // 等待串口稳定
     
     Serial.println("=== ESP32-S3 计算器系统启动 ===");
-    Serial.println("配置模式:");
 #ifdef DEBUG_MODE
-    Serial.println("  - 调试模式: 已启用");
-#else
-    Serial.println("  - 调试模式: 已禁用");
-#endif
-#ifdef ENABLE_BATTERY_MANAGER
-    Serial.println("  - 电池管理: 已启用");
-#else
-    Serial.println("  - 电池管理: 已禁用");
+    Serial.println("调试模式: 已启用");
 #endif
     Serial.println();
     
@@ -65,7 +54,7 @@ void setup() {
     LoggerConfig logConfig = Logger::getDefaultConfig();
     logConfig.level = LOG_LEVEL_INFO;
     logger.begin(logConfig);
-    LOG_I(TAG_MAIN, "日志系统初始化完成");
+    LOG_I(TAG_MAIN, "✅ 日志系统初始化完成");
     
     // 2. 初始化硬件显示系统
     Serial.println("2. 初始化显示系统...");
@@ -83,43 +72,17 @@ void setup() {
     BacklightControl::getInstance().setBacklight(100, 2000);  // 100%最大亮度，2秒渐变
     LOG_I(TAG_MAIN, "背光控制初始化完成");
     
-    // 5. 初始化反馈系统（LED效果 + 蜂鸣器）
-    Serial.println("5. 初始化反馈系统...");
-    if (!FEEDBACK_MGR.begin()) {
-        LOG_E(TAG_MAIN, "反馈系统初始化失败");
-        Serial.println("❌ 反馈系统初始化失败");
-    } else {
-        LOG_I(TAG_MAIN, "反馈系统初始化完成");
-        Serial.println("✅ 反馈系统初始化完成");
-    }
+    // 5. 初始化简单LED系统已在步骤3中完成
+    // 基本LED初始化已在initLEDs()中完成
     
-    // 6. 初始化键盘控制
-    Serial.println("6. 初始化键盘系统...");
+    // 5. 初始化键盘控制
+    Serial.println("5. 初始化键盘系统...");
     keypad.begin();
     keypad.setKeyEventCallback(onKeyEvent);
     LOG_I(TAG_MAIN, "键盘系统初始化完成");
     
-    // 7. 初始化电池管理系统（可选）
-    Serial.println("7. 初始化电池管理...");
-#ifdef ENABLE_BATTERY_MANAGER
-    if (!batteryManager.begin()) {
-        LOG_W(TAG_MAIN, "电池管理系统初始化失败 - 可能未连接电池硬件");
-        Serial.println("⚠️ 电池管理系统初始化失败 - 调试模式下可忽略");
-    } else {
-        LOG_I(TAG_MAIN, "电池管理系统初始化完成");
-        Serial.println("✅ 电池管理系统初始化完成");
-    }
-#else
-    LOG_I(TAG_MAIN, "电池管理系统已禁用 - 调试模式");
-    Serial.println("🔧 电池管理系统已禁用 - 调试模式");
-#endif
-    
-    // 8. OTA更新功能已移除
-    Serial.println("8. OTA更新功能已移除");
-    LOG_I(TAG_MAIN, "OTA更新功能已移除");
-    
-    // 9. 创建计算引擎
-    Serial.println("9. 初始化计算引擎...");
+    // 6. 创建计算引擎
+    Serial.println("6. 初始化计算引擎...");
     engine = std::make_shared<CalculationEngine>();
     if (!engine->begin()) {
         LOG_E(TAG_MAIN, "计算引擎初始化失败");
@@ -128,8 +91,8 @@ void setup() {
     }
     LOG_I(TAG_MAIN, "计算引擎初始化完成");
     
-    // 10. 创建显示管理器
-    Serial.println("10. 初始化显示管理器...");
+    // 7. 创建显示管理器
+    Serial.println("7. 初始化显示管理器...");
     Serial.println("  - 使用简化CalcDisplay界面");
     // 使用Canvas优化显示性能，如果Canvas不可用则回退到直接使用gfx
     Arduino_GFX* displayTarget = canvas ? canvas : gfx;
@@ -137,8 +100,8 @@ void setup() {
     displayAdapter = std::make_shared<CalcDisplayAdapter>(display.get());
     LOG_I(TAG_MAIN, "显示管理器初始化完成");
     
-    // 11. 创建计算器核心
-    Serial.println("11. 初始化计算器核心...");
+    // 8. 创建计算器核心
+    Serial.println("8. 初始化计算器核心...");
     calculator = std::make_shared<CalculatorCore>();
     calculator->setDisplay(displayAdapter);
     calculator->setCalculationEngine(engine);
@@ -153,7 +116,7 @@ void setup() {
     }
     LOG_I(TAG_MAIN, "计算器核心初始化完成");
     
-    // 12. 初始化计算器界面（直接进入计算器）
+    // 9. 初始化计算器界面（直接进入计算器）
     if (calculator && displayAdapter) {
         // 清除所有内容，设置初始状态
         calculator->clearAll();
@@ -168,13 +131,19 @@ void setup() {
         LOG_I(TAG_MAIN, "计算器界面已就绪");
     }
     
-    // 13. 启动效果
-    FEEDBACK_MGR.triggerSystemFeedback(SCENE_SYSTEM_STARTUP);
+    // 10. 启动效果（简化）
+    // 简单的启动LED效果
+    for (int i = 0; i < NUM_LEDS; i++) {
+        leds[i] = CRGB::Blue;
+    }
+    FastLED.show();
+    delay(500);
+    FastLED.clear();
+    FastLED.show();
     
     
     Serial.println("=== 计算器系统启动完成 ===");
-    Serial.println("系统就绪，可以开始使用");
-    Serial.println("发送 'help' 查看可用命令");
+    Serial.println("系统就绪，发送 'help' 查看命令");
     
     LOG_I(TAG_MAIN, "系统启动完成，所有组件已就绪");
 }
@@ -268,7 +237,6 @@ void initDisplay() {
         gfx->fillScreen(0x0000);
     }
     
-    Serial.println("✅ 显示系统初始化完成");
 }
 
 void initLEDs() {
@@ -290,7 +258,6 @@ void initLEDs() {
     }
     FastLED.show();
     
-    Serial.println("✅ LED系统初始化完成");
 }
 
 void onKeyEvent(KeyEventType type, uint8_t key, uint8_t* combo, uint8_t count) {
@@ -315,8 +282,14 @@ void onKeyEvent(KeyEventType type, uint8_t key, uint8_t* combo, uint8_t count) {
             // 如果后续需要手动刷新，可在确认无活动动画时调用 displayAdapter->updateDisplay()
         }
         
-        // 播放按键反馈
-        FEEDBACK_MGR.triggerKeyFeedback(key, true);
+        // 简单的按键反馈（LED亮起）
+        if (key >= 1 && key <= NUM_LEDS) {
+            leds[key-1] = CRGB::White;
+            FastLED.show();
+            delay(50);
+            leds[key-1] = CRGB::Black;
+            FastLED.show();
+        }
     }
 }
 
@@ -331,9 +304,6 @@ void handleSerialCommands() {
             Serial.println("== 系统状态 ==");
             Serial.println("help/h         - 显示命令帮助");
             Serial.println("status/s       - 显示系统状态");
-#ifdef ENABLE_BATTERY_MANAGER
-            Serial.println("battery/b      - 显示电池状态");
-#endif
             Serial.println();
             Serial.println("== 硬件控制 ==");
             Serial.println("backlight [0-100] - 设置背光亮度");
@@ -355,11 +325,6 @@ void handleSerialCommands() {
 #else
             Serial.println("调试模式: 已禁用");
 #endif
-#ifdef ENABLE_BATTERY_MANAGER
-            Serial.println("电池管理: 已启用");
-#else
-            Serial.println("电池管理: 已禁用");
-#endif
             Serial.println("UI界面: CalcDisplay简化UI");
             Serial.println("=========================\n");
         }
@@ -371,14 +336,6 @@ void handleSerialCommands() {
                 Serial.printf("计算器状态: 就绪\n");
                 Serial.printf("当前显示: %s\n", calculator->getCurrentDisplay().c_str());
             }
-#ifdef ENABLE_BATTERY_MANAGER
-            batteryManager.update();
-            Serial.printf("电池电压: %.2fV\n", batteryManager.getVoltage());
-            Serial.printf("电池电量: %d%%\n", batteryManager.getPercentage());
-#else
-            Serial.printf("电池管理: 已禁用\n");
-#endif
-            Serial.printf("OTA更新: 已移除\n");
             Serial.println("==================\n");
         }
         else if (command.startsWith("backlight ")) {
@@ -392,7 +349,14 @@ void handleSerialCommands() {
         }
         else if (command == "test") {
             Serial.println("执行系统测试...");
-            FEEDBACK_MGR.triggerSystemFeedback(SCENE_SUCCESS_NOTIFICATION);
+            // 简单的LED测试
+            for (int i = 0; i < NUM_LEDS; i++) {
+                leds[i] = CRGB::Green;
+            }
+            FastLED.show();
+            delay(1000);
+            FastLED.clear();
+            FastLED.show();
         }
         else if (command == "testframe") {
             Serial.println("绘制Arduino GFX红色线框测试...");
@@ -490,27 +454,6 @@ void handleSerialCommands() {
                 Serial.println("按键映射测试模式已切换");
             }
         }
-#ifdef ENABLE_BATTERY_MANAGER
-        else if (command == "battery" || command == "b") {
-            Serial.println("\n=== 电池状态 ===");
-            batteryManager.update();
-            Serial.printf("电池电压: %.2fV\n", batteryManager.getVoltage());
-            Serial.printf("电池电量: %d%%\n", batteryManager.getPercentage());
-            
-            // TP4056充电状态
-            bool charging = !digitalRead(TP4056_CHRG_PIN);
-            bool standby = !digitalRead(TP4056_STDBY_PIN);
-            
-            if (charging) {
-                Serial.println("充电状态: 正在充电");
-            } else if (standby) {
-                Serial.println("充电状态: 充电完成");
-            } else {
-                Serial.println("充电状态: 未充电");
-            }
-            Serial.println("==================\n");
-        }
-#endif
         else {
             Serial.println("未知命令，发送 'help' 查看可用命令");
         }
@@ -523,29 +466,6 @@ void updateSystems() {
     
     // 更新背光控制
     BacklightControl::getInstance().update();
-    
-    // 更新反馈系统
-    FEEDBACK_MGR.update();
-    
-    
-    // 定期更新电池状态（每5秒）
-#ifdef ENABLE_BATTERY_MANAGER
-    static unsigned long lastBatteryUpdate = 0;
-    if (millis() - lastBatteryUpdate > 5000) {
-        lastBatteryUpdate = millis();
-        batteryManager.update();
-        
-        // 检查低电量警告
-        if (batteryManager.getPercentage() < 10) {
-            static unsigned long lastWarning = 0;
-            if (millis() - lastWarning > 30000) { // 每30秒警告一次
-                lastWarning = millis();
-                FEEDBACK_MGR.triggerSystemFeedback(SCENE_BATTERY_LOW);
-                LOG_W(TAG_MAIN, "低电量警告: %d%%", batteryManager.getPercentage());
-            }
-        }
-    }
-#endif
     
     // 更新计算器核心
     if (calculator) {
