@@ -54,7 +54,7 @@ private:
     static const uint16_t COLOR_BG = 0x0000;      // 黑色背景
     static const uint16_t COLOR_FG = 0xFFFF;      // 白色前景
     static const uint16_t COLOR_HIST = 0x4208;    // 灰色历史
-    static const uint8_t PAD_X = 5;               // 左内边距
+    static const uint8_t PAD_X = 15;               // 左内边距
     
     // 行配置
     struct LineConfig {

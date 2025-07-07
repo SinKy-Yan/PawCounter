@@ -193,6 +193,7 @@ private:
     // 历史记录
     std::vector<CalculationHistory> _history;   ///< 计算历史
     size_t _maxHistorySize;            ///< 最大历史记录数
+    size_t _lastDisplayedHistorySize;   ///< 已显示的历史记录数量
     
     // 内存功能
     double _memoryValue;               ///< 内存值

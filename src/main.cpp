@@ -14,6 +14,7 @@
 // #include "CalcDisplayAdapter.h" - 已移除适配器层
 #include "CalculationEngine.h"
 #include "KeyboardConfig.h"   // 新增：用于打印键盘配置
+#include "SleepManager.h"  // 新增：休眠管理器头文件
 
 
 // 全局对象
@@ -129,6 +130,26 @@ void setup() {
         LOG_I(TAG_MAIN, "计算器界面已就绪");
     }
     
+    // 9. 初始化休眠管理器
+    Serial.println("9. 初始化休眠管理器...");
+    SleepManager::instance().begin(10000); // 默认10秒超时
+    // 注册背光回调
+    SleepManager::instance().addCallback(
+        [](void*) { 
+            // 进入休眠时：降低背光和CPU频率
+            BacklightControl::getInstance().setBacklight(10, 800);  // 降低到10%亮度
+            setCpuFrequencyMhz(80);  // 降低CPU频率至80MHz (默认通常是240MHz)
+            LOG_I(TAG_MAIN, "进入休眠模式: 降低CPU频率至80MHz, 背光10%%");
+        },
+        [](void*) { 
+            // 唤醒时：恢复背光和CPU频率
+            BacklightControl::getInstance().setBacklight(100, 500);  // 恢复100%亮度
+            setCpuFrequencyMhz(240);  // 恢复CPU频率至240MHz
+            LOG_I(TAG_MAIN, "退出休眠模式: 恢复CPU频率至240MHz, 背光100%%");
+        }
+    );
+    LOG_I(TAG_MAIN, "休眠管理器初始化完成");
+    
     // 10. 启动效果（简化）
     // 简单的启动LED效果
     for (int i = 0; i < NUM_LEDS; i++) {
@@ -185,7 +206,7 @@ void initDisplay() {
                              2,             // rotation: 0~3
                              true,          // IPS 屏
                              DISPLAY_WIDTH, // 480
-                             DISPLAY_HEIGHT,// 130
+                             DISPLAY_HEIGHT,// 135
                              0,             // 水平偏移（col_offset）
                              0,
                              0,
@@ -259,6 +280,8 @@ void initLEDs() {
 }
 
 void onKeyEvent(KeyEventType type, uint8_t key, uint8_t* combo, uint8_t count) {
+    SleepManager::instance().feed();  // 按键事件喂狗，重置休眠计时器
+    
     const char* eventStr;
     switch (type) {
         case KEY_EVENT_PRESS:       eventStr = "按下"; break;
@@ -304,12 +327,24 @@ void handleSerialCommands() {
             Serial.println("  tasks         - 显示正在运行的任务");
             Serial.println("  layout        - 显示键盘布局");
             Serial.println("  config        - 显示当前加载的配置");
+            Serial.println("  sleep <sec>   - 设置自动休眠时间(秒)");
+            Serial.println("  sleep off     - 关闭自动休眠功能");
         } else if (cmd.equalsIgnoreCase("status")) {
             Serial.println("系统状态:");
             Serial.printf(" - 可用堆内存: %d 字节\n", ESP.getFreeHeap());
             Serial.printf(" - CPU 频率: %d MHz\n", getCpuFrequencyMhz());
             Serial.printf(" - 运行时间: %lu 毫秒\n", millis());
             Serial.printf(" - 背光亮度: %d%%\n", BacklightControl::getInstance().getCurrentBrightness() * 100 / 255);
+            
+            // 显示休眠状态信息
+            const char* sleepState = (SleepManager::instance().getState() == SleepManager::State::SLEEPING) ? "已休眠" : "活动中";
+            uint32_t sleepTimeout = SleepManager::instance().getTimeout();
+            if (sleepTimeout > 0) {
+                Serial.printf(" - 休眠状态: %s (超时: %lu 秒)\n", sleepState, sleepTimeout / 1000);
+            } else {
+                Serial.printf(" - 休眠状态: 已禁用\n");
+            }
+            
             if(calculator) {
                 Serial.printf(" - 计算器显示: %s\n", calculator->getCurrentDisplay().c_str());
             }
@@ -383,6 +418,19 @@ void handleSerialCommands() {
         } else if (cmd.equalsIgnoreCase("config")) {
             keyboardConfig.printConfig();
         }
+        else if (cmd.startsWith("sleep ")) {
+            if (cmd.endsWith("off")) {
+                SleepManager::instance().setTimeout(0);               // 关闭休眠
+                Serial.println("自动休眠已关闭");
+            } else {
+                int sec = cmd.substring(6).toInt();
+                if (sec > 0) {
+                    SleepManager::instance().setTimeout(sec * 1000);
+                    Serial.printf("自动休眠改为 %d 秒\n", sec);
+                }
+            }
+            SleepManager::instance().feed();   // 命令本身也算活动
+        }
         else {
             Serial.printf("未知命令: '%s'\n", cmd.c_str());
         }
@@ -395,6 +443,9 @@ void updateSystems() {
     
     // 更新背光控制
     BacklightControl::getInstance().update();
+    
+    // 更新休眠管理器
+    SleepManager::instance().update();
     
     // 更新计算器核心
     if (calculator) {

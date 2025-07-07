@@ -26,24 +26,21 @@ CalcDisplay::~CalcDisplay() {
 
 void CalcDisplay::initializeLines() {
     // L0: 历史第2条（最旧）- 部分隐藏营造滚动效果（硬件已扩展5像素）
-    lines[0] = {history[1], 3, COLOR_HIST, -6, 24};
+    lines[0] = {history[1], 3, COLOR_HIST, -20, 24};
     
     // L1: 历史第1条（较旧）
-    lines[1] = {history[0], 3, COLOR_HIST, 20, 24};
+    lines[1] = {history[0], 3, COLOR_HIST, 6, 24};
     
     // L2: 当前输入表达式
-    lines[2] = {"", 3, COLOR_FG, 46, 24};
+    lines[2] = {"", 3, COLOR_FG, 32, 24};
     
     // L3: 计算结果（超大字体）
-    lines[3] = {"0", 8, COLOR_FG, 74, 64};
+    lines[3] = {"0", 8, COLOR_FG, 60, 64};
 }
 
 void CalcDisplay::drawFrame() {
     // 清屏为黑色
     tft->fillScreen(COLOR_BG);
-    
-    // 移除白色边框，保持纯黑色背景
-    // 简洁无边框设计
 }
 
 void CalcDisplay::drawLine(uint8_t lineIndex) {
