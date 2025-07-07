@@ -36,34 +36,34 @@ KeyboardConfigManager::~KeyboardConfigManager() {
 }
 
 bool KeyboardConfigManager::begin() {
-    KEYBOARD_LOG_I("Initializing keyboard configuration manager");
+    KEYBOARD_LOG_I("初始化键盘配置管理器");
     
     // 初始化Preferences
     if (!_preferences.begin(PREF_NAMESPACE, false)) {
-        KEYBOARD_LOG_E("Failed to initialize preferences");
+        KEYBOARD_LOG_E("初始化Preferences失败");
         return false;
     }
     
     // 加载配置
     if (!loadConfig()) {
-        KEYBOARD_LOG_W("Failed to load saved config, using defaults");
+        KEYBOARD_LOG_W("加载已保存的配置失败，使用默认配置");
         resetToDefault();
     }
     
-    KEYBOARD_LOG_I("Keyboard configuration manager initialized successfully");
+    KEYBOARD_LOG_I("键盘配置管理器初始化成功");
     return true;
 }
 
 bool KeyboardConfigManager::loadConfig(bool forceDefault) {
     if (forceDefault) {
-        KEYBOARD_LOG_I("Forcing default configuration");
+        KEYBOARD_LOG_I("强制使用默认配置");
         _layoutConfig = createDefaultConfig();
         return true;
     }
     
     // 检查是否有保存的配置
     if (!_preferences.isKey(PREF_CONFIG_KEY)) {
-        KEYBOARD_LOG_I("No saved configuration found, creating default");
+        KEYBOARD_LOG_I("未找到已保存的配置，创建默认配置");
         _layoutConfig = createDefaultConfig();
         return saveConfig();
     }
@@ -75,7 +75,7 @@ bool KeyboardConfigManager::loadConfig(bool forceDefault) {
     // 读取配置数据
     size_t configSize = _preferences.getBytesLength(PREF_CONFIG_KEY);
     if (configSize == 0) {
-        KEYBOARD_LOG_E("Invalid configuration size");
+        KEYBOARD_LOG_E("无效的配置大小");
         return false;
     }
     
@@ -83,7 +83,7 @@ bool KeyboardConfigManager::loadConfig(bool forceDefault) {
     size_t readSize = _preferences.getBytes(PREF_CONFIG_KEY, buffer, configSize);
     
     if (readSize != configSize) {
-        KEYBOARD_LOG_E("Configuration read size mismatch");
+        KEYBOARD_LOG_E("配置读取大小不匹配");
         delete[] buffer;
         return false;
     }
@@ -93,31 +93,31 @@ bool KeyboardConfigManager::loadConfig(bool forceDefault) {
     delete[] buffer;
     
     if (!result) {
-        KEYBOARD_LOG_E("Failed to deserialize configuration");
+        KEYBOARD_LOG_E("反序列化配置失败");
         return false;
     }
     
     // 验证校验和
     uint32_t calculatedChecksum = calculateChecksum();
     if (calculatedChecksum != savedChecksum) {
-        KEYBOARD_LOG_W("Configuration checksum mismatch, using defaults");
+        KEYBOARD_LOG_W("配置校验和不匹配，使用默认配置");
         _layoutConfig = createDefaultConfig();
         return saveConfig();
     }
     
     // 验证配置完整性
     if (!validateConfig()) {
-        KEYBOARD_LOG_E("Configuration validation failed");
+        KEYBOARD_LOG_E("配置验证失败");
         _layoutConfig = createDefaultConfig();
         return saveConfig();
     }
     
-    KEYBOARD_LOG_I("Configuration loaded successfully, version: %s", savedVersion.c_str());
+    KEYBOARD_LOG_I("配置加载成功，版本: %s", savedVersion.c_str());
     return true;
 }
 
 bool KeyboardConfigManager::saveConfig() {
-    KEYBOARD_LOG_D("Saving keyboard configuration");
+    KEYBOARD_LOG_D("正在保存键盘配置");
     
     // 更新校验和
     _layoutConfig.checksum = calculateChecksum();
@@ -128,7 +128,7 @@ bool KeyboardConfigManager::saveConfig() {
     size_t configSize = serializeConfig(buffer, maxBufferSize);
     
     if (configSize == 0) {
-        KEYBOARD_LOG_E("Failed to serialize configuration");
+        KEYBOARD_LOG_E("序列化配置失败");
         delete[] buffer;
         return false;
     }
@@ -142,16 +142,16 @@ bool KeyboardConfigManager::saveConfig() {
     delete[] buffer;
     
     if (result) {
-        KEYBOARD_LOG_I("Configuration saved successfully");
+        KEYBOARD_LOG_I("配置保存成功");
     } else {
-        KEYBOARD_LOG_E("Failed to save configuration");
+        KEYBOARD_LOG_E("配置保存失败");
     }
     
     return result;
 }
 
 bool KeyboardConfigManager::resetToDefault() {
-    KEYBOARD_LOG_I("Resetting to default configuration");
+    KEYBOARD_LOG_I("正在重置为默认配置");
     
     _layoutConfig = createDefaultConfig();
     _currentLayer = _layoutConfig.defaultLayer;
@@ -161,26 +161,26 @@ bool KeyboardConfigManager::resetToDefault() {
 
 bool KeyboardConfigManager::switchToLayer(KeyLayer layer) {
     if (layer >= KeyLayer::MAX_LAYERS) {
-        KEYBOARD_LOG_E("Invalid layer: %d", (int)layer);
+        KEYBOARD_LOG_E("无效的层: %d", (int)layer);
         return false;
     }
     
     const LayerConfig* layerConfig = findLayerConfig(layer);
     if (!layerConfig) {
-        KEYBOARD_LOG_E("Layer configuration not found: %d", (int)layer);
+        KEYBOARD_LOG_E("未找到层配置: %d", (int)layer);
         return false;
     }
     
     _currentLayer = layer;
     _lastLayerSwitchTime = millis();
     
-    KEYBOARD_LOG_I("Switched to layer: %s", layerConfig->name.c_str());
+    KEYBOARD_LOG_I("已切换到层: %s", layerConfig->name.c_str());
     return true;
 }
 
 bool KeyboardConfigManager::handleTabKey(bool isLongPress) {
     if (isLongPress) {
-        KEYBOARD_LOG_D("Tab key long press detected");
+        KEYBOARD_LOG_D("检测到Tab键长按");
         
         // 执行长按回调
         if (_tabBehavior.onLongPress) {
@@ -189,7 +189,7 @@ bool KeyboardConfigManager::handleTabKey(bool isLongPress) {
         
         return true;
     } else {
-        KEYBOARD_LOG_D("Tab key short press detected");
+        KEYBOARD_LOG_D("检测到Tab键短按");
         
         // 短按切换层级
         KeyLayer targetLayer = (_currentLayer == KeyLayer::PRIMARY) ? 
@@ -217,7 +217,7 @@ const KeyConfig* KeyboardConfigManager::getKeyConfig(uint8_t position, KeyLayer 
 bool KeyboardConfigManager::setKeyConfig(uint8_t position, const KeyConfig& config, KeyLayer layer) {
     LayerConfig* layerConfig = findLayerConfig(layer);
     if (!layerConfig) {
-        KEYBOARD_LOG_E("Layer not found: %d", (int)layer);
+        KEYBOARD_LOG_E("未找到层: %d", (int)layer);
         return false;
     }
     
@@ -225,7 +225,7 @@ bool KeyboardConfigManager::setKeyConfig(uint8_t position, const KeyConfig& conf
     for (auto& keyConfig : layerConfig->keys) {
         if (keyConfig.position == position) {
             keyConfig = config;
-            KEYBOARD_LOG_I("Updated key config for position %d in layer %s", 
+            KEYBOARD_LOG_I("已更新位置 %d 在层 %s 的按键配置", 
                           position, layerConfig->name.c_str());
             return true;
         }
@@ -233,7 +233,7 @@ bool KeyboardConfigManager::setKeyConfig(uint8_t position, const KeyConfig& conf
     
     // 如果没找到，添加新的配置
     layerConfig->keys.push_back(config);
-    KEYBOARD_LOG_I("Added new key config for position %d in layer %s", 
+    KEYBOARD_LOG_I("已为位置 %d 在层 %s 添加新的按键配置", 
                   position, layerConfig->name.c_str());
     return true;
 }
@@ -241,7 +241,7 @@ bool KeyboardConfigManager::setKeyConfig(uint8_t position, const KeyConfig& conf
 bool KeyboardConfigManager::validateConfig() const {
     // 检查基本配置
     if (_layoutConfig.layers.empty()) {
-        KEYBOARD_LOG_E("No layers configured");
+        KEYBOARD_LOG_E("未配置任何层");
         return false;
     }
     
@@ -252,141 +252,113 @@ bool KeyboardConfigManager::validateConfig() const {
         if (layer.layer == KeyLayer::SECONDARY) hasSecondary = true;
     }
     
-    if (!hasPrimary || !hasSecondary) {
-        KEYBOARD_LOG_E("Missing required layers (Primary: %d, Secondary: %d)", 
-                      hasPrimary, hasSecondary);
+    if (!hasPrimary) {
+        KEYBOARD_LOG_E("未找到主层");
+        return false;
+    }
+    if (!hasSecondary) {
+        KEYBOARD_LOG_E("未找到次层");
         return false;
     }
     
-    // 检查Tab键配置
+    // 验证Tab键位置
     if (_layoutConfig.tabKeyPosition == 0 || _layoutConfig.tabKeyPosition > 22) {
-        KEYBOARD_LOG_E("Invalid tab key position: %d", _layoutConfig.tabKeyPosition);
+        KEYBOARD_LOG_E("Tab键位置 %d 无效", _layoutConfig.tabKeyPosition);
         return false;
     }
     
+    // 检查每个层
+    for (const auto& layer : _layoutConfig.layers) {
+        std::vector<uint8_t> positions;
+        for (const auto& key : layer.keys) {
+            // 验证按键类型
+            if (key.type >= KeyType::MAX_KEY_TYPES) {
+                KEYBOARD_LOG_E("在层 %s 的按键位置 %d 有无效的类型 %d", 
+                               layer.name.c_str(), key.position, (int)key.type);
+                return false;
+            }
+            // 检查重复位置
+            if (std::find(positions.begin(), positions.end(), key.position) != positions.end()) {
+                KEYBOARD_LOG_E("在层 %s 的按键位置 %d 是重复的", 
+                               layer.name.c_str(), key.position);
+                return false;
+            }
+            positions.push_back(key.position);
+        }
+    }
+    
+    KEYBOARD_LOG_I("配置有效");
     return true;
 }
 
 void KeyboardConfigManager::printConfig() const {
-    KEYBOARD_LOG_I("=== Keyboard Configuration ===");
-    KEYBOARD_LOG_I("Name: %s", _layoutConfig.name.c_str());
-    KEYBOARD_LOG_I("Version: %s", _layoutConfig.version.c_str());
-    KEYBOARD_LOG_I("Tab Key Position: %d", _layoutConfig.tabKeyPosition);
-    KEYBOARD_LOG_I("Current Layer: %d", (int)_currentLayer);
-    
+    Serial.println("=== 键盘配置 ===");
+    Serial.printf("名称: %s\n", _layoutConfig.name.c_str());
+    Serial.printf("版本: %s\n", _layoutConfig.version.c_str());
+    Serial.printf("Tab键位置: %d\n", _layoutConfig.tabKeyPosition);
+    Serial.printf("当前层: %d\n", (int)_currentLayer);
     for (const auto& layer : _layoutConfig.layers) {
-        KEYBOARD_LOG_I("Layer: %s (%d keys)", layer.name.c_str(), layer.keys.size());
-        for (const auto& key : layer.keys) {
-            KEYBOARD_LOG_D("  Key %d: %s (%s)", key.position, 
-                          key.symbol.c_str(), key.label.c_str());
-        }
+        Serial.printf("层: %s (%d 个键)\n", layer.name.c_str(), layer.keys.size());
     }
 }
 
 KeyboardLayoutConfig KeyboardConfigManager::createDefaultConfig() {
-    KeyboardLayoutConfig config;
-    config.name = "Standard Calculator Layout";
-    config.version = "1.0";
-    config.defaultLayer = KeyLayer::PRIMARY;
-    config.tabKeyPosition = 6;  // Key 6 as Tab
-    config.layerSwitchTimeout = 30000;  // 30 seconds
-    config.checksum = 0;  // Will be calculated when saving
+    KEYBOARD_LOG_D("创建默认键盘配置");
     
-    // 创建两个层级
-    config.layers.push_back(createPrimaryLayer());
-    config.layers.push_back(createSecondaryLayer());
+    KeyboardLayoutConfig config;
+    config.name = "标准计算器布局";
+    config.version = "1.0";
+    config.tabKeyPosition = 6;
+    config.defaultLayer = KeyLayer::PRIMARY;
+    
+    // --- 主层 (Primary Layer) ---
+    LayerConfig primaryLayer;
+    primaryLayer.layer = KeyLayer::PRIMARY;
+    primaryLayer.name = "主层";
+    primaryLayer.keys = {
+        {1, KeyType::POWER, "ON", "POWER", Operator::NONE, "power"},
+        {2, KeyType::NUMBER, "7", "SEVEN"},
+        {3, KeyType::NUMBER, "4", "FOUR"},
+        {4, KeyType::NUMBER, "1", "ONE"},
+        {5, KeyType::NUMBER, "0", "ZERO"},
+        {6, KeyType::LAYER_SWITCH, "TAB", "LAYER_SWITCH"},
+        {7, KeyType::NUMBER, "8", "EIGHT"},
+        {8, KeyType::NUMBER, "5", "FIVE"},
+        {9, KeyType::NUMBER, "2", "TWO"},
+        {10, KeyType::FUNCTION, "%", "PERCENT", Operator::PERCENT},
+        {11, KeyType::NUMBER, "9", "NINE"},
+        {12, KeyType::NUMBER, "6", "SIX"},
+        {13, KeyType::NUMBER, "3", "THREE"},
+        {14, KeyType::DECIMAL, ".", "DOT"},
+        {15, KeyType::DELETE, "⌫", "BACKSPACE"},
+        {16, KeyType::OPERATOR, "×", "MUL", Operator::MULTIPLY},
+        {17, KeyType::OPERATOR, "-", "SUB", Operator::SUBTRACT},
+        {18, KeyType::OPERATOR, "+", "ADD", Operator::ADD},
+        {19, KeyType::CLEAR, "C", "CLEAR"},
+        {20, KeyType::FUNCTION, "±", "SIGN"},
+        {21, KeyType::OPERATOR, "÷", "DIV", Operator::DIVIDE},
+        {22, KeyType::FUNCTION, "=", "EQUALS", Operator::EQUALS}
+    };
+    config.layers.push_back(primaryLayer);
+    
+    // --- 次层 (Secondary Layer) ---
+    LayerConfig secondaryLayer;
+    secondaryLayer.layer = KeyLayer::SECONDARY;
+    secondaryLayer.name = "次层";
+    secondaryLayer.keys = {
+        // 示例：可以添加更多科学计算功能
+        {2, KeyType::FUNCTION, "√", "SQRT", Operator::SQUARE_ROOT},
+        {3, KeyType::FUNCTION, "x²", "SQUARE", Operator::SQUARE},
+        {4, KeyType::FUNCTION, "1/x", "RECIPROCAL", Operator::RECIPROCAL},
+        // 其他按键保持与主层一致或禁用
+        {7, KeyType::MEMORY, "M+", "M_ADD"},
+        {8, KeyType::MEMORY, "M-", "M_SUB"},
+        {9, KeyType::MEMORY, "MR", "M_RECALL"},
+        {11, KeyType::MEMORY, "MC", "M_CLEAR"},
+    };
+    config.layers.push_back(secondaryLayer);
     
     return config;
-}
-
-LayerConfig KeyboardConfigManager::createPrimaryLayer() {
-    LayerConfig layer;
-    layer.layer = KeyLayer::PRIMARY;
-    layer.name = "Primary Layer";
-    layer.description = "Main calculator functions";
-    layer.isActive = true;
-    
-    // 按照新的布局配置按键
-    layer.keys = {
-        // 第一排
-        {1,  KeyType::POWER,       "ON",  "Power On/Off",    Operator::NONE, "",           0, true},
-        {6,  KeyType::LAYER_SWITCH,"TAB", "Layer Switch",   Operator::NONE, "",           0, true},
-        {10, KeyType::FUNCTION,    "%",   "Percent",        Operator::PERCENT, "",        0, true},
-        {15, KeyType::DELETE,      "⌫",   "Backspace",      Operator::NONE, "",           0, true},
-        {19, KeyType::CLEAR,       "C",   "Clear",          Operator::NONE, "",           0, true},
-        
-        // 第二排
-        {2,  KeyType::NUMBER,      "7",   "Seven",          Operator::NONE, "",           0, true},
-        {7,  KeyType::NUMBER,      "8",   "Eight",          Operator::NONE, "",           0, true},
-        {11, KeyType::NUMBER,      "9",   "Nine",           Operator::NONE, "",           0, true},
-        {16, KeyType::OPERATOR,    "×",   "Multiply",       Operator::MULTIPLY, "",       0, true},
-        {20, KeyType::FUNCTION,    "±",   "Plus/Minus",     Operator::NONE, "",           0, true},
-        
-        // 第三排
-        {3,  KeyType::NUMBER,      "4",   "Four",           Operator::NONE, "",           0, true},
-        {8,  KeyType::NUMBER,      "5",   "Five",           Operator::NONE, "",           0, true},
-        {12, KeyType::NUMBER,      "6",   "Six",            Operator::NONE, "",           0, true},
-        {17, KeyType::OPERATOR,    "−",   "Subtract",       Operator::SUBTRACT, "",       0, true},
-        {21, KeyType::OPERATOR,    "÷",   "Divide",         Operator::DIVIDE, "",         0, true},
-        
-        // 第四排
-        {4,  KeyType::NUMBER,      "1",   "One",            Operator::NONE, "",           0, true},
-        {9,  KeyType::NUMBER,      "2",   "Two",            Operator::NONE, "",           0, true},
-        {13, KeyType::NUMBER,      "3",   "Three",          Operator::NONE, "",           0, true},
-        {18, KeyType::OPERATOR,    "+",   "Add",            Operator::ADD, "",            0, true},
-        {22, KeyType::FUNCTION,    "=",   "Equals",         Operator::EQUALS, "",         0, true},
-        
-        // 第五排
-        {5,  KeyType::NUMBER,      "0",   "Zero",           Operator::NONE, "",           0, true},
-        {14, KeyType::DECIMAL,     ".",   "Decimal Point",  Operator::NONE, "",           0, true}
-    };
-    
-    return layer;
-}
-
-LayerConfig KeyboardConfigManager::createSecondaryLayer() {
-    LayerConfig layer;
-    layer.layer = KeyLayer::SECONDARY;
-    layer.name = "Secondary Layer";
-    layer.description = "Extended functions (accessible via Tab)";
-    layer.isActive = false;
-    
-    // 第二层的功能键配置（预留接口，可后续扩展）
-    layer.keys = {
-        // 第一排 - 预留扩展功能
-        {1,  KeyType::POWER,       "OFF", "Power Off",      Operator::NONE, "power_off",  0, true},
-        {6,  KeyType::LAYER_SWITCH,"TAB", "Back to Primary", Operator::NONE, "",          0, true},
-        {10, KeyType::FUNCTION,    "M+",  "Memory Add",     Operator::NONE, "mem_add",    0, true},
-        {15, KeyType::FUNCTION,    "MC",  "Memory Clear",   Operator::NONE, "mem_clear",  0, true},
-        {19, KeyType::FUNCTION,    "AC",  "All Clear",      Operator::NONE, "all_clear",  0, true},
-        
-        // 第二排 - 科学函数预留
-        {2,  KeyType::FUNCTION,    "x²",  "Square",         Operator::SQUARE, "square",   0, true},
-        {7,  KeyType::FUNCTION,    "√",   "Square Root",    Operator::SQUARE_ROOT, "sqrt", 0, true},
-        {11, KeyType::FUNCTION,    "1/x", "Reciprocal",     Operator::RECIPROCAL, "recip", 0, true},
-        {16, KeyType::FUNCTION,    "×10", "Sci Notation",   Operator::NONE, "sci_not",    0, true},
-        {20, KeyType::FUNCTION,    "M-",  "Memory Sub",     Operator::NONE, "mem_sub",    0, true},
-        
-        // 第三排 - 更多预留功能
-        {3,  KeyType::FUNCTION,    "(",   "Left Paren",     Operator::NONE, "lparen",     0, true},
-        {8,  KeyType::FUNCTION,    ")",   "Right Paren",    Operator::NONE, "rparen",     0, true},
-        {12, KeyType::FUNCTION,    "π",   "Pi",             Operator::NONE, "pi",         0, true},
-        {17, KeyType::FUNCTION,    "e",   "Euler Number",   Operator::NONE, "euler",      0, true},
-        {21, KeyType::FUNCTION,    "MR",  "Memory Recall",  Operator::NONE, "mem_recall", 0, true},
-        
-        // 第四排 - 预留
-        {4,  KeyType::FUNCTION,    "F1",  "Function 1",     Operator::NONE, "func1",      0, true},
-        {9,  KeyType::FUNCTION,    "F2",  "Function 2",     Operator::NONE, "func2",      0, true},
-        {13, KeyType::FUNCTION,    "F3",  "Function 3",     Operator::NONE, "func3",      0, true},
-        {18, KeyType::FUNCTION,    "F4",  "Function 4",     Operator::NONE, "func4",      0, true},
-        {22, KeyType::FUNCTION,    "ENT", "Enter",          Operator::NONE, "enter",      0, true},
-        
-        // 第五排 - 预留
-        {5,  KeyType::FUNCTION,    "SPC", "Space",          Operator::NONE, "space",      0, true},
-        {14, KeyType::FUNCTION,    ",",   "Comma/Separator", Operator::NONE, "comma",     0, true}
-    };
-    
-    return layer;
 }
 
 uint32_t KeyboardConfigManager::calculateChecksum() const {

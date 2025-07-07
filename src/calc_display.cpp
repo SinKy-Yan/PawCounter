@@ -17,11 +17,11 @@ CalcDisplay::CalcDisplay(Arduino_GFX *d, uint16_t w, uint16_t h)
     drawFrame();
     refresh();
     
-    LOG_I(TAG_CALC_DISPLAY, "CalcDisplay initialized");
+    LOG_I(TAG_CALC_DISPLAY, "CalcDisplay已初始化");
 }
 
 CalcDisplay::~CalcDisplay() {
-    LOG_I(TAG_CALC_DISPLAY, "CalcDisplay destroyed");
+    LOG_I(TAG_CALC_DISPLAY, "CalcDisplay已销毁");
 }
 
 void CalcDisplay::initializeLines() {
@@ -132,13 +132,13 @@ void CalcDisplay::tick() {
 
 // 简化的动画方法（仅记录日志）
 void CalcDisplay::animateInputChange(const String& oldTxt, const String& newTxt) {
-    LOG_D(TAG_CALC_DISPLAY, "Input change: %s -> %s", oldTxt.c_str(), newTxt.c_str());
+    LOG_D(TAG_CALC_DISPLAY, "输入变更: %s -> %s", oldTxt.c_str(), newTxt.c_str());
     // 直接刷新显示，不执行动画
     refresh();
 }
 
 void CalcDisplay::animateMoveInputToExpr(const String& inputTxt, const String& finalExpr) {
-    LOG_D(TAG_CALC_DISPLAY, "Move to expr: %s -> %s", inputTxt.c_str(), finalExpr.c_str());
+    LOG_D(TAG_CALC_DISPLAY, "移至表达式: %s -> %s", inputTxt.c_str(), finalExpr.c_str());
     // 直接刷新显示，不执行动画
     refresh();
 }
@@ -175,7 +175,7 @@ uint16_t CalcDisplay::getCharWidth(uint8_t textSize) {
 
 // 简化的动画管理方法
 void CalcDisplay::interruptCurrentAnimation() {
-    LOG_D(TAG_CALC_DISPLAY, "Animation interrupt requested (simplified)");
+    LOG_D(TAG_CALC_DISPLAY, "请求中断动画(简化版)");
 }
 
 bool CalcDisplay::hasActiveAnimation() const {

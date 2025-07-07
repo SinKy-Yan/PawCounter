@@ -12,36 +12,7 @@
 #include "KeyboardConfig.h"
 #include "NumberFormatter.h"
 
-// 按键映射表定义（基于实际物理按键编号 1-22）
-// 修改后的布局：Key 19改为清除，Key 15改为向前删除，Key 6改为Tab
-const KeyConfig CalculatorCore::_keyMappings[] = {
-// 物理按键编号 -> 实际按键功能
-{1,  KeyType::POWER,     "ON",  "POWER",     Operator::NONE,     "",         0,  true},  // Key 1: ON/OFF
-{2,  KeyType::NUMBER,    "7",   "SEVEN",     Operator::NONE,     "",         0,  true},  // Key 2: 7
-{3,  KeyType::NUMBER,    "4",   "FOUR",      Operator::NONE,     "",         0,  true},  // Key 3: 4
-{4,  KeyType::NUMBER,    "1",   "ONE",       Operator::NONE,     "",         0,  true},  // Key 4: 1
-{5,  KeyType::NUMBER,    "0",   "ZERO",      Operator::NONE,     "",         0,  true},  // Key 5: 0
-{6,  KeyType::MODE_SWITCH,"TAB", "LAYER_SWITCH", Operator::NONE, "layer",    0,  true},  // Key 6: TAB (层级切换)
-{7,  KeyType::NUMBER,    "8",   "EIGHT",     Operator::NONE,     "",         0,  true},  // Key 7: 8
-{8,  KeyType::NUMBER,    "5",   "FIVE",      Operator::NONE,     "",         0,  true},  // Key 8: 5
-{9,  KeyType::NUMBER,    "2",   "TWO",       Operator::NONE,     "",         0,  true},  // Key 9: 2
-{10, KeyType::FUNCTION,  "%",   "PERCENT",   Operator::PERCENT,  "percent",  0,  true},  // Key 10: PCT
-{11, KeyType::NUMBER,    "9",   "NINE",      Operator::NONE,     "",         0,  true},  // Key 11: 9
-{12, KeyType::NUMBER,    "6",   "SIX",       Operator::NONE,     "",         0,  true},  // Key 12: 6
-{13, KeyType::NUMBER,    "3",   "THREE",     Operator::NONE,     "",         0,  true},  // Key 13: 3
-{14, KeyType::DECIMAL,   ".",   "DOT",       Operator::NONE,     "",         0,  true},  // Key 14: .
-{15, KeyType::FUNCTION,  "⌫",   "BACKSPACE", Operator::NONE,     "backspace", 0,  true},  // Key 15: 向前删除
-{16, KeyType::OPERATOR,  "*",   "MUL",       Operator::MULTIPLY, "",         0,  true},  // Key 16: MUL
-{17, KeyType::OPERATOR,  "-",   "SUB",       Operator::SUBTRACT, "",         0,  true},  // Key 17: SUB
-{18, KeyType::OPERATOR,  "+",   "ADD",       Operator::ADD,      "",         0,  true},  // Key 18: ADD
-{19, KeyType::FUNCTION,  "C",   "CLEAR",     Operator::NONE,     "clear",    0,  true},  // Key 19: 清除
-{20, KeyType::FUNCTION,  "±",   "SIGN",      Operator::NONE,     "sign",     0,  true},  // Key 20: +/-
-{21, KeyType::OPERATOR,  "/",   "DIV",       Operator::DIVIDE,   "",         0,  true},  // Key 21: DIV
-{22, KeyType::FUNCTION,  "=",   "EQUALS",    Operator::EQUALS,   "equals",   0,  true}   // Key 22: EQ
-};
-
-
-const size_t CalculatorCore::_keyMappingsSize = sizeof(_keyMappings) / sizeof(_keyMappings[0]);
+// 按键映射表已移除，现在使用KeyboardConfig系统
 
 CalculatorCore::CalculatorCore() 
     : _display(nullptr)
@@ -176,7 +147,7 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
     updateDisplay();
     
     // 调试日志：确认按键处理状态
-    Serial.printf("[Core] Key %d handled, mainText=%s state=%d\n",
+    Serial.printf("[核心] 按键 %d 已处理, 主文本=%s 状态=%d\n",
                   keyPosition, getCurrentDisplay().c_str(), (int)getState());
     
     return true;
@@ -218,7 +189,7 @@ void CalculatorCore::clearAll() {
 
 void CalculatorCore::updateDisplay() {
     if (_display) {
-        Serial.printf("[Core] updateDisplay called: display='%s', expr='%s', state=%d\n",
+        Serial.printf("[核心] updateDisplay 调用: 显示='%s', 表达式='%s', 状态=%d\n",
                       _currentDisplay.c_str(), _expressionDisplay.c_str(), (int)_state);
         
         // 直接更新CalcDisplay
@@ -228,7 +199,7 @@ void CalculatorCore::updateDisplay() {
         
         // 简化错误处理
         if (_lastError != CalculatorError::NONE) {
-            String errorMsg = "Error: ";
+            String errorMsg = "错误: ";
             switch (_lastError) {
                 case CalculatorError::DIVISION_BY_ZERO:
                     errorMsg += "除数为零";

@@ -46,7 +46,8 @@ enum class KeyType {
     DELETE,             ///< 向前删除
     MEMORY,             ///< 内存操作
     POWER,              ///< 电源相关
-    RESERVED            ///< 保留功能
+    RESERVED,           ///< 保留功能
+    MAX_KEY_TYPES       ///< 最大类型数量，用于验证
 };
 
 /**

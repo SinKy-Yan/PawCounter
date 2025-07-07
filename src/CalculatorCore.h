@@ -198,9 +198,9 @@ private:
     double _memoryValue;               ///< 内存值
     bool _hasMemoryValue;              ///< 是否有内存值
     
-    // 按键映射系统
-    static const KeyConfig _keyMappings[];          ///< 按键映射表
-    static const size_t _keyMappingsSize;           ///< 按键映射表大小
+    // 按键映射系统 (已废弃，由KeyboardConfig代替)
+    // static const KeyConfig _keyMappings[];
+    // static const size_t _keyMappingsSize;
     
     /**
      * @brief 处理数字输入
