@@ -213,6 +213,12 @@ public:
     void setBuzzerMode(BuzzerMode mode);
 
     /**
+     * @brief 获取蜂鸣器配置
+     * @return 当前蜂鸣器配置
+     */
+    const BuzzerConfig& getBuzzerConfig() const { return _buzzerConfig; }
+
+    /**
      * @brief 启动蜂鸣器（用于测试）
      * @param freq 频率
      * @param duration 持续时间

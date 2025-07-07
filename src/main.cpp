@@ -349,8 +349,8 @@ void handleSerialCommands() {
             Serial.println("  sleep off     - 关闭自动休眠功能");
             Serial.println("  test_feedback <key> - 测试按键反馈效果");
             Serial.println("  buzzer <freq> <duration> - 测试蜂鸣器");
-            Serial.println("  piano_mode <on|off> - 切换钢琴模式（老式电话拨号音）");
-            Serial.println("  piano_test - 测试钢琴音阶（播放22个音符）");
+            Serial.println("  piano_mode <on|off> - 切换钢琴模式（500Hz-2500Hz宽频音调）");
+            Serial.println("  piano_test - 测试宽频音阶（播放22个音符，5倍频率范围）");
         } else if (cmd.equalsIgnoreCase("status")) {
             Serial.println("系统状态:");
             Serial.printf(" - 可用堆内存: %d 字节\n", ESP.getFreeHeap());
@@ -370,6 +370,10 @@ void handleSerialCommands() {
             if(calculator) {
                 Serial.printf(" - 计算器显示: %s\n", calculator->getCurrentDisplay().c_str());
             }
+            
+            // 显示蜂鸣器模式状态
+            Serial.printf(" - 蜂鸣器模式: %s\n", 
+                        (keypad.getBuzzerConfig().mode == BUZZER_MODE_PIANO) ? "钢琴模式 (500Hz-2500Hz)" : "普通模式");
         } else if (cmd.startsWith("led")) {
             int parts[5];
             if (cmd.indexOf("all") > 0) {
@@ -496,27 +500,36 @@ void handleSerialCommands() {
         else if (cmd.startsWith("piano_mode")) {
             if (cmd.endsWith("on")) {
                 keypad.setBuzzerMode(BUZZER_MODE_PIANO);
-                Serial.println("✅ 钢琴模式已启用 - 每个按键将播放不同的钢琴音调");
+                Serial.println("✅ 宽频音调模式已启用");
+                Serial.println("📊 频率范围: 500Hz-2500Hz (5倍频率差，高品质音调)");
+                Serial.println("🎵 每个按键将播放不同频率的音调，清晰易辨");
             } else if (cmd.endsWith("off")) {
                 keypad.setBuzzerMode(BUZZER_MODE_NORMAL);
-                Serial.println("✅ 钢琴模式已关闭 - 恢复普通蜂鸣器模式");
+                Serial.println("✅ 宽频音调模式已关闭 - 恢复普通蜂鸣器模式");
             } else {
                 Serial.println("无效的 'piano_mode' 命令格式. 使用: piano_mode <on|off>");
             }
         }
         else if (cmd.equalsIgnoreCase("piano_test")) {
-            Serial.println("🎹 播放钢琴音阶测试 (C4-A5)...");
+            Serial.println("🎹 播放宽频音阶测试 (500Hz-2500Hz)...");
+            Serial.println("📊 5倍频率范围，音调清晰易辨，适合蜂鸣器");
             // 临时启用钢琴模式进行测试
             keypad.setBuzzerMode(BUZZER_MODE_PIANO);
             
             // 播放22个音符
             for (int i = 1; i <= 22; i++) {
-                Serial.printf("播放按键 %d ", i);
+                if (i == 1) Serial.printf("播放按键 %d (500Hz 低音) ", i);
+                else if (i == 6) Serial.printf("播放按键 %d (733Hz 低中音) ", i);
+                else if (i == 11) Serial.printf("播放按键 %d (1074Hz 中音) ", i);
+                else if (i == 16) Serial.printf("播放按键 %d (1575Hz 高音) ", i);
+                else if (i == 22) Serial.printf("播放按键 %d (2500Hz 超高音) ", i);
+                else Serial.printf("播放按键 %d ", i);
+                
                 onKeyEvent(KEY_EVENT_PRESS, i, nullptr, 0);
-                delay(200);  // 每个音符间隔200ms
+                delay(300);  // 增加间隔让音调差异更明显
             }
             
-            Serial.println("\n🎵 钢琴音阶测试完成");
+            Serial.println("\n🎵 宽频音阶测试完成");
             Serial.println("💡 使用 'piano_mode off' 恢复普通模式");
         }
         else {
