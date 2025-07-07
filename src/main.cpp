@@ -11,10 +11,10 @@
 #include "KeypadControl.h"
 #include "CalculatorCore.h"
 #include "calc_display.h"
-// #include "CalcDisplayAdapter.h" - 已移除适配器层
 #include "CalculationEngine.h"
 #include "KeyboardConfig.h"   // 新增：用于打印键盘配置
 #include "SleepManager.h"  // 新增：休眠管理器头文件
+#include "ConfigManager.h"  // 新增：配置管理器
 
 
 // 全局对象
@@ -50,43 +50,58 @@ void setup() {
 #endif
     Serial.println();
     
-    // 1. 初始化日志系统
-    Serial.println("1. 初始化日志系统...");
+    // 1. 初始化配置管理器
+    Serial.println("1. 初始化配置管理器...");
+    ConfigManager& configManager = ConfigManager::getInstance();
+    if (!configManager.begin()) {
+        Serial.println("❌ 配置管理器初始化失败");
+        LOG_E(TAG_MAIN, "配置管理器初始化失败");
+        return;
+    }
+    LOG_I(TAG_MAIN, "✅ 配置管理器初始化完成");
+    
+    // 2. 初始化日志系统
+    Serial.println("2. 初始化日志系统...");
     Logger& logger = Logger::getInstance();
     LoggerConfig logConfig = Logger::getDefaultConfig();
-    logConfig.level = LOG_LEVEL_INFO;
+    logConfig.level = (log_level_t)configManager.getLogLevel();
     logger.begin(logConfig);
     LOG_I(TAG_MAIN, "✅ 日志系统初始化完成");
     
-    // 2. 初始化硬件显示系统
-    Serial.println("2. 初始化显示系统...");
+    // 3. 初始化硬件显示系统
+    Serial.println("3. 初始化显示系统...");
     initDisplay();
     LOG_I(TAG_MAIN, "显示系统初始化完成");
     
-    // 3. 初始化LED系统
-    Serial.println("3. 初始化LED系统...");
+    // 4. 初始化LED系统
+    Serial.println("4. 初始化LED系统...");
     initLEDs();
     LOG_I(TAG_MAIN, "LED系统初始化完成");
     
-    // 4. 初始化背光控制
-    Serial.println("4. 初始化背光控制...");
+    // 5. 初始化背光控制
+    Serial.println("5. 初始化背光控制...");
     BacklightControl::getInstance().begin();
-    BacklightControl::getInstance().setBacklight(100, 2000);  // 100%最大亮度，2秒渐变
+    uint8_t savedBrightness = configManager.getBacklightBrightness();
+    BacklightControl::getInstance().setBacklight(savedBrightness, 2000);  // 使用保存的亮度
     LOG_I(TAG_MAIN, "背光控制初始化完成");
     
-    // 5. 初始化简单LED系统已在步骤3中完成
-    // 基本LED初始化已在initLEDs()中完成
-    
-    // 5. 初始化键盘控制
-    Serial.println("5. 初始化键盘系统...");
+    // 6. 初始化键盘控制
+    Serial.println("6. 初始化键盘系统...");
     keypad.begin();
     keypad.setKeyEventCallback(onKeyEvent);
+    
+    // 从配置管理器加载按键设置
+    Serial.println("  - 从配置加载按键设置...");
+    keypad.setRepeatDelay(configManager.getRepeatDelay());
+    keypad.setRepeatRate(configManager.getRepeatRate());
+    keypad.setLongPressDelay(configManager.getLongPressDelay());
+    keypad.setGlobalBrightness(configManager.getLEDBrightness());
     
     // 配置按键反馈效果
     Serial.println("  - 配置按键反馈效果...");
     KeyFeedback defaultFeedback = {
         .enabled = true,
-        .color = CRGB::Blue,
+        .color = CRGB::White,
         .ledMode = LED_FADE,
         .buzzFreq = 2000,
         .buzzDuration = 50
@@ -97,12 +112,22 @@ void setup() {
         keypad.setKeyFeedback(i, defaultFeedback);
     }
     
-    // 启用蜂鸣器跟随按键
-    keypad.setBuzzerFollowKey(true, false);
-    LOG_I(TAG_MAIN, "键盘系统初始化完成，已配置按键反馈效果");
+    // 从配置管理器加载蜂鸣器设置
+    BuzzerConfig buzzerConfig = {
+        .enabled = configManager.getBuzzerEnabled(),
+        .followKeypress = configManager.getBuzzerFollowKeypress(),
+        .dualTone = configManager.getBuzzerDualTone(),
+        .mode = (BuzzerMode)configManager.getBuzzerMode(),
+        .volume = (BuzzerVolume)configManager.getBuzzerVolume(),
+        .pressFreq = configManager.getBuzzerPressFreq(),
+        .releaseFreq = configManager.getBuzzerReleaseFreq(),
+        .duration = configManager.getBuzzerDuration()
+    };
+    keypad.configureBuzzer(buzzerConfig);
+    LOG_I(TAG_MAIN, "键盘系统初始化完成，已加载保存的配置");
     
-    // 6. 创建计算引擎
-    Serial.println("6. 初始化计算引擎...");
+    // 7. 创建计算引擎
+    Serial.println("7. 初始化计算引擎...");
     engine = std::make_shared<CalculationEngine>();
     if (!engine->begin()) {
         LOG_E(TAG_MAIN, "计算引擎初始化失败");
@@ -111,8 +136,8 @@ void setup() {
     }
     LOG_I(TAG_MAIN, "计算引擎初始化完成");
     
-    // 7. 创建显示管理器
-    Serial.println("7. 初始化显示管理器...");
+    // 8. 创建显示管理器
+    Serial.println("8. 初始化显示管理器...");
     Serial.println("  - 使用简化CalcDisplay界面");
     // 使用Canvas优化显示性能，如果Canvas不可用则回退到直接使用gfx
     Arduino_GFX* displayTarget = canvas ? canvas : gfx;
@@ -120,8 +145,8 @@ void setup() {
     // CalcDisplayAdapter已被移除，直接使用CalcDisplay
     LOG_I(TAG_MAIN, "显示管理器初始化完成");
     
-    // 8. 创建计算器核心
-    Serial.println("8. 初始化计算器核心...");
+    // 9. 创建计算器核心
+    Serial.println("9. 初始化计算器核心...");
     calculator = std::make_shared<CalculatorCore>();
     calculator->setDisplay(display.get());
     calculator->setCalculationEngine(engine);
@@ -135,7 +160,7 @@ void setup() {
     }
     LOG_I(TAG_MAIN, "计算器核心初始化完成");
     
-    // 9. 初始化计算器界面（直接进入计算器）
+    // 10. 初始化计算器界面（直接进入计算器）
     if (calculator && display) {
         // 清除所有内容，设置初始状态
         calculator->clearAll();
@@ -148,9 +173,10 @@ void setup() {
         LOG_I(TAG_MAIN, "计算器界面已就绪");
     }
     
-    // 9. 初始化休眠管理器
-    Serial.println("9. 初始化休眠管理器...");
-    SleepManager::instance().begin(10000); // 默认10秒超时
+    // 11. 初始化休眠管理器
+    Serial.println("11. 初始化休眠管理器...");
+    uint32_t sleepTimeout = configManager.getSleepTimeout();
+    SleepManager::instance().begin(sleepTimeout);  // 使用配置的超时时间
     // 注册背光回调
     SleepManager::instance().addCallback(
         [](void*) { 
@@ -167,18 +193,6 @@ void setup() {
         }
     );
     LOG_I(TAG_MAIN, "休眠管理器初始化完成");
-    
-    // 10. 启动效果（简化）
-    // 简单的启动LED效果
-    for (int i = 0; i < NUM_LEDS; i++) {
-        leds[i] = CRGB::Blue;
-    }
-    FastLED.show();
-    delay(500);
-    FastLED.clear();
-    FastLED.show();
-    
-    
     Serial.println("=== 计算器系统启动完成 ===");
     Serial.println("系统就绪，发送 'help' 查看命令");
     
@@ -287,12 +301,33 @@ void initLEDs() {
     
     // 启动LED测试序列
     Serial.println("  - 执行LED测试序列...");
+    
+    // 设置所有LED为紫色
     for (int i = 0; i < NUM_LEDS; i++) {
-        leds[i] = CRGB::Blue;
-        FastLED.show();
-        delay(50);
-        leds[i] = CRGB::Black;
+        leds[i] = CRGB::Purple;
     }
+    
+    // 300ms内渐亮
+    const int steps = 30;  // 30步渐变
+    const int stepDelay = 10;  // 每步10ms，总计300ms
+    
+    // 渐亮过程
+    for (int brightness = 0; brightness <= 255; brightness += (255 / steps)) {
+        FastLED.setBrightness(brightness);
+        FastLED.show();
+        delay(stepDelay);
+    }
+    
+    // 渐灭过程
+    for (int brightness = 255; brightness >= 0; brightness -= (255 / steps)) {
+        FastLED.setBrightness(brightness);
+        FastLED.show();
+        delay(stepDelay);
+    }
+    
+    // 恢复原始亮度设置并清除LED
+    FastLED.setBrightness(LED_BRIGHTNESS);
+    FastLED.clear();
     FastLED.show();
     
 }
@@ -351,6 +386,13 @@ void handleSerialCommands() {
             Serial.println("  buzzer <freq> <duration> - 测试蜂鸣器");
             Serial.println("  piano_mode <on|off> - 切换钢琴模式（500Hz-2500Hz宽频音调）");
             Serial.println("  piano_test - 测试宽频音阶（播放22个音符，5倍频率范围）");
+            Serial.println("  led_test - 逐个测试所有LED");
+            Serial.println("  save_config - 手动保存当前配置");
+            Serial.println("  load_config - 重新加载配置");
+            Serial.println("  reset_config - 重置配置为默认值");
+            Serial.println("  show_config - 显示当前配置");
+            Serial.println("  config_info - 显示配置系统信息");
+            Serial.println("  auto_save <on|off> - 开启/关闭自动保存");
         } else if (cmd.equalsIgnoreCase("status")) {
             Serial.println("系统状态:");
             Serial.printf(" - 可用堆内存: %d 字节\n", ESP.getFreeHeap());
@@ -409,7 +451,9 @@ void handleSerialCommands() {
                 if (brightness >= 0 && brightness <= 255) {
                     FastLED.setBrightness(brightness);
                     FastLED.show();
-                    Serial.printf("LED亮度已设置为 %d\n", brightness);
+                    keypad.setGlobalBrightness(brightness);
+                    ConfigManager::getInstance().setLEDBrightness(brightness);
+                    Serial.printf("LED亮度已设置为 %d 并保存到配置\n", brightness);
                 } else {
                     Serial.println("亮度值必须在 0-255 之间");
                 }
@@ -424,7 +468,8 @@ void handleSerialCommands() {
             if (sscanf(cmd.c_str(), "log_level %d", &level) == 1) {
                 if (level >= LOG_LEVEL_NONE && level <= LOG_LEVEL_VERBOSE) {
                     Logger::getInstance().setLevel((log_level_t)level);
-                    Serial.printf("日志级别已设置为 %d\n", level);
+                    ConfigManager::getInstance().setLogLevel(level);
+                    Serial.printf("日志级别已设置为 %d 并保存到配置\n", level);
                 } else {
                     Serial.println("无效的日志级别");
                 }
@@ -447,12 +492,15 @@ void handleSerialCommands() {
         else if (cmd.startsWith("sleep ")) {
             if (cmd.endsWith("off")) {
                 SleepManager::instance().setTimeout(0);               // 关闭休眠
-                Serial.println("自动休眠已关闭");
+                ConfigManager::getInstance().setSleepTimeout(0);
+                Serial.println("自动休眠已关闭并保存到配置");
             } else {
                 int sec = cmd.substring(6).toInt();
                 if (sec > 0) {
-                    SleepManager::instance().setTimeout(sec * 1000);
-                    Serial.printf("自动休眠改为 %d 秒\n", sec);
+                    uint32_t timeout = sec * 1000;
+                    SleepManager::instance().setTimeout(timeout);
+                    ConfigManager::getInstance().setSleepTimeout(timeout);
+                    Serial.printf("自动休眠改为 %d 秒并保存到配置\n", sec);
                 }
             }
             SleepManager::instance().feed();   // 命令本身也算活动
@@ -500,12 +548,14 @@ void handleSerialCommands() {
         else if (cmd.startsWith("piano_mode")) {
             if (cmd.endsWith("on")) {
                 keypad.setBuzzerMode(BUZZER_MODE_PIANO);
-                Serial.println("✅ 宽频音调模式已启用");
+                ConfigManager::getInstance().setBuzzerMode(1);
+                Serial.println("✅ 宽频音调模式已启用并保存到配置");
                 Serial.println("📊 频率范围: 500Hz-2500Hz (5倍频率差，高品质音调)");
                 Serial.println("🎵 每个按键将播放不同频率的音调，清晰易辨");
             } else if (cmd.endsWith("off")) {
                 keypad.setBuzzerMode(BUZZER_MODE_NORMAL);
-                Serial.println("✅ 宽频音调模式已关闭 - 恢复普通蜂鸣器模式");
+                ConfigManager::getInstance().setBuzzerMode(0);
+                Serial.println("✅ 宽频音调模式已关闭并保存到配置 - 恢复普通蜂鸣器模式");
             } else {
                 Serial.println("无效的 'piano_mode' 命令格式. 使用: piano_mode <on|off>");
             }
@@ -532,6 +582,62 @@ void handleSerialCommands() {
             Serial.println("\n🎵 宽频音阶测试完成");
             Serial.println("💡 使用 'piano_mode off' 恢复普通模式");
         }
+        else if (cmd.equalsIgnoreCase("led_test")) {
+            Serial.println("测试所有LED...");
+            for (int i = 0; i < NUM_LEDS; i++) {
+                leds[i] = CRGB::Red;
+                FastLED.show();
+                delay(100);
+                leds[i] = CRGB::Black;
+                FastLED.show();
+                delay(50);
+            }
+            Serial.println("LED测试完成");
+        }
+        else if (cmd.equalsIgnoreCase("save_config")) {
+            Serial.println("手动保存配置...");
+            if (ConfigManager::getInstance().save()) {
+                Serial.println("✅ 配置保存成功");
+            } else {
+                Serial.println("❌ 配置保存失败");
+            }
+        }
+        else if (cmd.equalsIgnoreCase("load_config")) {
+            Serial.println("重新加载配置...");
+            if (ConfigManager::getInstance().load()) {
+                Serial.println("✅ 配置加载成功");
+                Serial.println("请注意：部分配置需要重启才能生效");
+            } else {
+                Serial.println("❌ 配置加载失败");
+            }
+        }
+        else if (cmd.equalsIgnoreCase("reset_config")) {
+            Serial.println("重置配置为默认值...");
+            ConfigManager::getInstance().reset();
+            Serial.println("✅ 配置已重置为默认值");
+            Serial.println("请注意：部分配置需要重启才能生效");
+        }
+        else if (cmd.equalsIgnoreCase("show_config")) {
+            ConfigManager::getInstance().printConfig();
+        }
+        else if (cmd.equalsIgnoreCase("config_info")) {
+            Serial.println("配置系统信息:");
+            Serial.printf("配置结构体大小: %d 字节\n", ConfigManager::getInstance().getConfigSize());
+            Serial.printf("配置已初始化: %s\n", ConfigManager::getInstance().isInitialized() ? "是" : "否");
+            Serial.printf("配置有更改: %s\n", ConfigManager::getInstance().isDirty() ? "是" : "否");
+            Serial.printf("自动保存: %s\n", ConfigManager::getInstance().getAutoSave() ? "开启" : "关闭");
+        }
+        else if (cmd.startsWith("auto_save")) {
+            if (cmd.endsWith("on")) {
+                ConfigManager::getInstance().setAutoSave(true);
+                Serial.println("✅ 自动保存已开启");
+            } else if (cmd.endsWith("off")) {
+                ConfigManager::getInstance().setAutoSave(false);
+                Serial.println("✅ 自动保存已关闭");
+            } else {
+                Serial.println("无效的 'auto_save' 命令格式. 使用: auto_save <on|off>");
+            }
+        }
         else {
             Serial.printf("未知命令: '%s'\n", cmd.c_str());
         }
@@ -555,4 +661,7 @@ void updateSystems() {
     if (calculator) {
         calculator->update();
     }
+    
+    // 更新配置管理器（自动保存）
+    ConfigManager::getInstance().saveIfDirty();
 }

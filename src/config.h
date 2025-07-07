@@ -38,7 +38,7 @@
 
 #define RGB_PIN 46
 #define NUM_LEDS 22        // 总共22个LED
-#define LED_BRIGHTNESS 100 // LED默认亮度 (0-255)
+#define LED_BRIGHTNESS 255 // LED默认亮度 (0-255)
 #define LED_FADE_DURATION 500  // LED渐变持续时间(ms)
 extern CRGB leds[NUM_LEDS];
 

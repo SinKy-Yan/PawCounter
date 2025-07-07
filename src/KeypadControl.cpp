@@ -93,6 +93,8 @@ KeypadControl::KeypadControl()
     memset(_keyStates, 0, sizeof(_keyStates));
     // 初始化LED效果数组
     memset(_ledEffects, 0, sizeof(_ledEffects));
+    // 初始化按键反馈数组
+    memset(_keyFeedback, 0, sizeof(_keyFeedback));
     
     // 初始化蜂鸣器配置
     _buzzerConfig = {
@@ -293,41 +295,41 @@ void KeypadControl::handleKeyEvent(KeyEventType type, uint8_t key) {
             handleLEDEffect(key - 1, _keyFeedback[key - 1].ledMode, 
                           _keyFeedback[key - 1].color);
         }
+    }
+    
+    // 蜂鸣器反馈
+    if (_buzzerConfig.followKeypress) {
+        uint16_t freq = _buzzerConfig.pressFreq;  // 默认频率
         
-        // 蜂鸣器反馈
-        if (_buzzerConfig.followKeypress) {
-            uint16_t freq = _buzzerConfig.pressFreq;  // 默认频率
-            
-            // 根据蜂鸣器模式选择频率
-            if (_buzzerConfig.mode == BUZZER_MODE_PIANO && key >= 1 && key <= 22) {
-                freq = PIANO_TONES[key - 1];  // 使用钢琴音调
-            }
-            
-            switch (type) {
-                case KEY_EVENT_PRESS:
-                    startBuzzer(freq, _buzzerConfig.duration);
-                    break;
-                    
-                case KEY_EVENT_RELEASE:
-                    if (_buzzerConfig.dualTone) {
-                        uint16_t releaseFreq = (_buzzerConfig.mode == BUZZER_MODE_PIANO && key >= 1 && key <= 22) 
-                                             ? PIANO_TONES[key - 1] * 0.8  // 钢琴模式下释放音调略低
-                                             : _buzzerConfig.releaseFreq;
-                        startBuzzer(releaseFreq, _buzzerConfig.duration);
-                    }
-                    break;
-                    
-                case KEY_EVENT_LONGPRESS:
-                    startBuzzer(freq * 1.2, _buzzerConfig.duration * 1.5);  // 长按音调略高
-                    break;
-                    
-                case KEY_EVENT_REPEAT:
-                    startBuzzer(freq, _buzzerConfig.duration / 2);
-                    break;
-                    
-                default:
-                    break;
-            }
+        // 根据蜂鸣器模式选择频率
+        if (_buzzerConfig.mode == BUZZER_MODE_PIANO && key >= 1 && key <= 22) {
+            freq = PIANO_TONES[key - 1];  // 使用钢琴音调
+        }
+        
+        switch (type) {
+            case KEY_EVENT_PRESS:
+                startBuzzer(freq, _buzzerConfig.duration);
+                break;
+                
+            case KEY_EVENT_RELEASE:
+                if (_buzzerConfig.dualTone) {
+                    uint16_t releaseFreq = (_buzzerConfig.mode == BUZZER_MODE_PIANO && key >= 1 && key <= 22) 
+                                         ? PIANO_TONES[key - 1] * 0.8  // 钢琴模式下释放音调略低
+                                         : _buzzerConfig.releaseFreq;
+                    startBuzzer(releaseFreq, _buzzerConfig.duration);
+                }
+                break;
+                
+            case KEY_EVENT_LONGPRESS:
+                startBuzzer(freq * 1.2, _buzzerConfig.duration * 1.5);  // 长按音调略高
+                break;
+                
+            case KEY_EVENT_REPEAT:
+                startBuzzer(freq, _buzzerConfig.duration / 2);
+                break;
+                
+            default:
+                break;
         }
     }
 }
