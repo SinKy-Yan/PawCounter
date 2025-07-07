@@ -1,294 +1,246 @@
-# CLAUDE.md
+# Claude Code Configuration
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Build Commands
+- `npm run build`: Build the project
+- `npm run test`: Run the full test suite
+- `npm run lint`: Run ESLint and format checks
+- `npm run typecheck`: Run TypeScript type checking
+- `./claude-flow --help`: Show all available commands
 
-## 项目概述
+## Claude-Flow Complete Command Reference
 
-这是一个基于ESP32-S3的计算器项目，使用PlatformIO开发。
+### Core System Commands
+- `./claude-flow start [--ui] [--port 3000] [--host localhost]`: Start orchestration system with optional web UI
+- `./claude-flow status`: Show comprehensive system status
+- `./claude-flow monitor`: Real-time system monitoring dashboard
+- `./claude-flow config <subcommand>`: Configuration management (show, get, set, init, validate)
 
-### 硬件特性
-- ESP32-S3 DevKit-M-1开发板  
-- 480x128 LCD显示屏，带背光控制
-- 22键物理键盘，每个按键都有独立LED反馈
-- 电池管理系统（MAX17048电量计 + TP4056充电器）
-- 蜂鸣器音频反馈
-- WS2812 RGB LED用于按键照明
+### Agent Management
+- `./claude-flow agent spawn <type> [--name <name>]`: Create AI agents (researcher, coder, analyst, etc.)
+- `./claude-flow agent list`: List all active agents
+- `./claude-flow spawn <type>`: Quick agent spawning (alias for agent spawn)
 
-### 关键配置开关
-在 `config.h` 中可配置的功能：
-```cpp
-#define DEBUG_MODE                    // 启用调试模式
-// #define ENABLE_BATTERY_MANAGER     // 启用电池管理（调试时可注释）
-// #define ENABLE_LVGL_UI             // 启用LVGL界面（注释掉使用Arduino_GFX）
-```
+### Task Orchestration
+- `./claude-flow task create <type> [description]`: Create and manage tasks
+- `./claude-flow task list`: View active task queue
+- `./claude-flow workflow <file>`: Execute workflow automation files
 
-## 构建命令
+### Memory Management
+- `./claude-flow memory store <key> <data>`: Store persistent data across sessions
+- `./claude-flow memory get <key>`: Retrieve stored information
+- `./claude-flow memory list`: List all memory keys
+- `./claude-flow memory export <file>`: Export memory to file
+- `./claude-flow memory import <file>`: Import memory from file
+- `./claude-flow memory stats`: Memory usage statistics
+- `./claude-flow memory cleanup`: Clean unused memory entries
 
-根据开发环境选择对应的命令：
+### SPARC Development Modes
+- `./claude-flow sparc "<task>"`: Run orchestrator mode (default)
+- `./claude-flow sparc run <mode> "<task>"`: Run specific SPARC mode
+- `./claude-flow sparc tdd "<feature>"`: Test-driven development mode
+- `./claude-flow sparc modes`: List all 17 available SPARC modes
 
-**Windows (WSL):**
+Available SPARC modes: orchestrator, coder, researcher, tdd, architect, reviewer, debugger, tester, analyzer, optimizer, documenter, designer, innovator, swarm-coordinator, memory-manager, batch-executor, workflow-manager
+
+### Swarm Coordination
+- `./claude-flow swarm "<objective>" [options]`: Multi-agent swarm coordination
+- `--strategy`: research, development, analysis, testing, optimization, maintenance
+- `--mode`: centralized, distributed, hierarchical, mesh, hybrid
+- `--max-agents <n>`: Maximum number of agents (default: 5)
+- `--parallel`: Enable parallel execution
+- `--monitor`: Real-time monitoring
+- `--output <format>`: json, sqlite, csv, html
+
+### MCP Server Integration
+- `./claude-flow mcp start [--port 3000] [--host localhost]`: Start MCP server
+- `./claude-flow mcp status`: Show MCP server status
+- `./claude-flow mcp tools`: List available MCP tools
+
+### Claude Integration
+- `./claude-flow claude auth`: Authenticate with Claude API
+- `./claude-flow claude models`: List available Claude models
+- `./claude-flow claude chat`: Interactive chat mode
+
+### Session Management
+- `./claude-flow session`: Manage terminal sessions
+- `./claude-flow repl`: Start interactive REPL mode
+
+### Enterprise Features
+- `./claude-flow project <subcommand>`: Project management (Enterprise)
+- `./claude-flow deploy <subcommand>`: Deployment operations (Enterprise)
+- `./claude-flow cloud <subcommand>`: Cloud infrastructure management (Enterprise)
+- `./claude-flow security <subcommand>`: Security and compliance tools (Enterprise)
+- `./claude-flow analytics <subcommand>`: Analytics and insights (Enterprise)
+
+### Project Initialization
+- `./claude-flow init`: Initialize Claude-Flow project
+- `./claude-flow init --sparc`: Initialize with full SPARC development environment
+
+## Quick Start Workflows
+
+### Research Workflow
 ```bash
-# 编译项目
-/mnt/c/.platformio/penv/Scripts/pio.exe run
+# Start a research swarm with distributed coordination
+./claude-flow swarm "Research modern web frameworks" --strategy research --mode distributed --parallel --monitor
 
-# 上传到设备
-/mnt/c/.platformio/penv/Scripts/pio.exe run --target upload
+# Or use SPARC researcher mode for focused research
+./claude-flow sparc run researcher "Analyze React vs Vue vs Angular performance characteristics"
 
-# 监控串口输出
-/mnt/c/.platformio/penv/Scripts/pio.exe device monitor
-
-# 清理构建文件
-/mnt/c/.platformio/penv/Scripts/pio.exe run --target clean
-
-# 一键编译并上传
-/mnt/c/.platformio/penv/Scripts/pio.exe run --target upload --target monitor
+# Store findings in memory for later use
+./claude-flow memory store "research_findings" "Key insights from framework analysis"
 ```
 
-**macOS/Linux:**
+### Development Workflow
 ```bash
-# 编译项目 (使用完整路径)
-/Users/sinky/.platformio/penv/bin/pio run
+# Start orchestration system with web UI
+./claude-flow start --ui --port 3000
 
-# OTA功能已移除
+# Run TDD workflow for new feature
+./claude-flow sparc tdd "User authentication system with JWT tokens"
 
-# 上传到设备
-/Users/sinky/.platformio/penv/bin/pio run --target upload
+# Development swarm for complex projects
+./claude-flow swarm "Build e-commerce API with payment integration" --strategy development --mode hierarchical --max-agents 8 --monitor
 
-# OTA无线上传功能已移除
-
-# 监控串口输出
-/Users/sinky/.platformio/penv/bin/pio device monitor
-
-# 清理构建文件
-/Users/sinky/.platformio/penv/bin/pio run --target clean
-
-# 查看Arduino框架版本
-/Users/sinky/.platformio/penv/bin/pio pkg show framework-arduinoespressif32
-
-# 查看ESP32平台版本
-/Users/sinky/.platformio/penv/bin/pio platform show espressif32
+# Check system status
+./claude-flow status
 ```
 
-**当前环境版本信息:**
-- ESP32 Platform: 6.11.0 (2025年5月发布)
-- Arduino ESP32 Framework: 3.20017.241212 (2024年12月发布)
+### Analysis Workflow
+```bash
+# Analyze codebase performance
+./claude-flow sparc run analyzer "Identify performance bottlenecks in current codebase"
 
-## 架构概览
+# Data analysis swarm
+./claude-flow swarm "Analyze user behavior patterns from logs" --strategy analysis --mode mesh --parallel --output sqlite
 
-### 核心组件
-
-项目采用模块化架构，主要组件包括：
-
-1. **硬件抽象层**
-   - `config.h`: 硬件配置和引脚定义中心
-   - 统一的硬件初始化流程（12步初始化）
-
-2. **输入系统** 
-   - `KeypadControl`: 高级键盘管理，支持防抖、长按检测、LED反馈
-   - 移位寄存器扫描22个物理按键
-   - 支持组合键和多种事件类型
-
-3. **显示系统**
-   - 双UI系统：Arduino_GFX（轻量级）或 LVGL（现代UI）
-   - `BackLightControl`: PWM背光控制，支持平滑渐变
-   - 480x128像素显示，支持180度软件旋转
-
-4. **电源管理**
-   - `BatteryManager`: MAX17048电量计 + TP4056充电管理
-   - 低电量检测和警告（可配置禁用）
-
-5. **计算器核心**
-   - `CalculatorCore`: 可扩展的计算器架构
-   - `CalculationEngine`: 高精度计算引擎
-   - 支持基本、科学、财务计算模式
-   - 完整的历史记录和错误处理
-
-6. **日志系统**
-   - `Logger`: 统一日志管理，支持多级别（ERROR到VERBOSE）
-   - 模块化标签，彩色输出
-   - 串口命令动态控制日志级别
-
-### 关键设计模式
-
-- **单例模式**: `BacklightControl`和`Logger`使用单例模式便于全局访问
-- **事件驱动架构**: `KeypadControl`使用回调系统处理按键事件
-- **硬件抽象**: 所有引脚定义集中在`config.h`中
-- **状态管理**: 每个组件维护自己的状态并具有更新循环
-- **模块化日志**: 每个组件使用专用的日志标签，便于调试和监控
-
-### 硬件集成
-
-系统集成了多个硬件子系统：
-- **SPI显示**: LCD的自定义并行接口
-- **移位寄存器扫描**: 键盘矩阵的串行输入
-- **I2C电池监控**: MAX17048通信
-- **PWM控制器**: 用于背光、蜂鸣器和LED效果的LEDC
-- **RMT协议**: 通过FastLED控制WS2812 LED灯带
-
-### 按键映射
-
-物理按键通过`LED_TO_KEY_MAP`和`KEY_MATRIX`数组进行映射。计算器支持：
-- 标准数字输入（0-9）
-- 基本运算符（+、-、*、/）
-- 特殊功能（清除、等号、小数点）
-- 电源和蓝牙按键（预留扩展）
-
-## 开发注意事项
-
-- 所有时间敏感操作使用`millis()`进行非阻塞执行
-- 硬件初始化必须遵循特定顺序（显示屏 → LED → 键盘 → 电池）
-- 主循环需要定期调用各组件的`update()`方法以确保正常运行
-- 在config.h中定义`DEBUG_MODE`时可获得调试输出
-- 使用新的ESP32 LEDC API：`ledcAttach()`、`ledcAttachChannel()`、`ledcWrite()`，而不是已弃用的`ledcSetup()`和`ledcAttachPin()`
-
-## 常用串口命令
-
-系统提供了丰富的串口命令用于调试和控制：
-
-### 基础命令
-- `help` / `h` - 显示完整命令帮助
-- `status` / `s` - 显示系统运行状态  
-- `clear` / `c` - 清除显示
-- `test` - 执行系统测试
-
-### 硬件控制
-- `backlight [0-100]` - 设置背光亮度
-- `battery` / `b` - 显示电池状态（需启用电池管理）
-
-### 计算器功能
-- `mode` / `m` - 切换计算模式（基本↔财务）
-- `financial` - 财务模式演示
-
-### 调试功能
-- `layout` - 显示按键布局图
-- `keymap` - 按键映射测试
-- `log [e/w/i/d/v]` - 设置日志级别
-- `rotate [0-1]` - 测试显示旋转
-
-## 日志系统
-
-项目集成了完整的日志管理系统，支持多级别日志输出：
-
-### 日志级别
-- `ERROR` - 错误信息，系统异常
-- `WARN` - 警告信息，潜在问题  
-- `INFO` - 重要信息，系统状态
-- `DEBUG` - 调试信息，详细流程
-- `VERBOSE` - 详细信息，完整数据
-
-### 使用示例
-```cpp
-// 通用日志宏
-LOG_E(TAG_KEYPAD, "Error message");
-LOG_I(TAG_KEYPAD, "Info message");
-
-// 模块专用宏
-KEYPAD_LOG_I("Key %d pressed", keyNum);
-DISPLAY_LOG_D("Backlight set to %d%%", brightness);
-BATTERY_LOG_W("Low battery: %d%%", percentage);
+# Store analysis results
+./claude-flow memory store "performance_analysis" "Bottlenecks identified in database queries"
 ```
 
-### 运行时控制
-通过串口命令动态调整日志级别：
-- `log e` - 设置为ERROR级别
-- `log w` - 设置为WARN级别
-- `log i` - 设置为INFO级别
-- `log d` - 设置为DEBUG级别
-- `log v` - 设置为VERBOSE级别
+### Maintenance Workflow
+```bash
+# System maintenance with safety controls
+./claude-flow swarm "Update dependencies and security patches" --strategy maintenance --mode centralized --monitor
 
-## 按键布局
+# Security review
+./claude-flow sparc run reviewer "Security audit of authentication system"
 
-22键物理键盘布局：
-```
-┌───────┬───────┬───────┬───────┬───────┐
-│Key 1  │Key 6  │Key 10 │Key 15 │Key 19 │
-│ON/OFF │  BT   │ PCT   │  C    │ DEL   │
-├───────┼───────┼───────┼───────┼───────┤
-│Key 2  │Key 7  │Key 11 │Key 16 │Key 20 │
-│  7    │  8    │  9    │ MUL   │ +/-   │
-├───────┼───────┼───────┼───────┼───────┤
-│Key 3  │Key 8  │Key 12 │Key 17 │Key 21 │
-│  4    │  5    │  6    │ SUB   │ DIV   │
-├───────┼───────┼───────┼───────┼───────┤
-│Key 4  │Key 9  │Key 13 │Key 18 │Key 22 │
-│  1    │  2    │  3    │ ADD   │ EQ    │
-├───────┼───────┼───────┴───────┴───────┤
-│Key 5  │Key 14 │                       │
-│  0    │  .    │                       │
-└───────┴───────┴───────────────────────┘
+# Export maintenance logs
+./claude-flow memory export maintenance_log.json
 ```
 
-## 故障排除
+## Integration Patterns
 
-### 按键问题
-1. 使用 `layout` 命令查看按键布局
-2. 使用 `keymap` 命令进入测试模式验证按键功能
-3. 检查串口日志中的详细计算过程
-4. 使用 `status` 命令查看当前状态信息
+### Memory-Driven Coordination
+Use Memory to coordinate information across multiple SPARC modes and swarm operations:
 
-### 显示问题
-- 如果显示倒置，项目已实现180度软件旋转修复
-- 使用 `rotate [0-1]` 命令测试不同角度
-- 检查背光设置：`backlight [0-100]`
+```bash
+# Store architecture decisions
+./claude-flow memory store "system_architecture" "Microservices with API Gateway pattern"
 
-### 电池管理问题
-- 调试时可在 `config.h` 中注释 `ENABLE_BATTERY_MANAGER` 
-- 使用 `battery` 命令查看电池状态
-
-## 计算器功能特性
-
-### 双UI系统支持
-- **Arduino_GFX**: 轻量级UI，适合基础功能
-- **LVGL**: 现代化UI框架，支持复杂动画和主题
-- 通过 `ENABLE_LVGL_UI` 宏切换
-
-### 计算模式
-- **基本模式**: 四则运算、百分比、平方根
-- **财务模式**: 货币格式、单位显示、金额分解
-- **科学模式**: 三角函数、对数、指数（预留）
-
-### 财务模式特色
-财务模式提供中文单位显示：
-```
-12345.67 显示为:
-- LCD: ¥12,345.67 
-- 串口: 
-  总金额: ¥12,345.67
-  1万 2千 3百 4十 5个 0.67元
+# All subsequent operations can reference this decision
+./claude-flow sparc run coder "Implement user service based on system_architecture in memory"
+./claude-flow sparc run tester "Create integration tests for microservices architecture"
 ```
 
-### 扩展开发指南
+### Multi-Stage Development
+Coordinate complex development through staged execution:
 
-#### 添加新计算模式
-1. 继承`CalculatorMode`基类
-2. 实现必要的虚函数
-3. 定义专用的按键映射
-4. 注册到计算器核心
+```bash
+# Stage 1: Research and planning
+./claude-flow sparc run researcher "Research authentication best practices"
+./claude-flow sparc run architect "Design authentication system architecture"
 
-#### 添加自定义数学函数
-1. 继承`CalculationFunction`基类
-2. 实现`calculate()`方法
-3. 通过`CalculationEngine::addFunction()`注册
+# Stage 2: Implementation
+./claude-flow sparc tdd "User registration and login functionality"
+./claude-flow sparc run coder "Implement JWT token management"
 
-## 性能和内存信息
+# Stage 3: Testing and deployment
+./claude-flow sparc run tester "Comprehensive security testing"
+./claude-flow swarm "Deploy authentication system" --strategy maintenance --mode centralized
+```
 
-### 编译结果（参考）
-- **RAM使用**: ~23.6% (77,496/327,680 bytes) - 使用LVGL时
-- **Flash使用**: ~34.6% (726,368/2,097,152 bytes) - 包含所有功能
-- **编译状态**: 成功，无错误或警告
+### Enterprise Integration
+For enterprise environments with additional tooling:
 
-### 初始化流程（12步）
-系统采用有序初始化确保硬件稳定：
-1. 串口通信初始化
-2. 日志系统初始化
-3. 显示系统初始化
-4. LED系统初始化
-5. 背光控制初始化
-6. 反馈系统初始化
-7. 键盘系统初始化
-8. 电池管理初始化（可选）
-9. 计算引擎初始化
-10. 显示管理器初始化
-11. 计算器核心初始化
-12. 启动效果播放
+```bash
+# Project management integration
+./claude-flow project create "authentication-system"
+./claude-flow project switch "authentication-system"
 
+# Security compliance
+./claude-flow security scan
+./claude-flow security audit
+
+# Analytics and monitoring
+./claude-flow analytics dashboard
+./claude-flow deploy production --monitor
+```
+
+## Advanced Batch Tool Patterns
+
+### TodoWrite Coordination
+Always use TodoWrite for complex task coordination:
+
+```javascript
+TodoWrite([
+  {
+    id: "architecture_design",
+    content: "Design system architecture and component interfaces",
+    status: "pending",
+    priority: "high",
+    dependencies: [],
+    estimatedTime: "60min",
+    assignedAgent: "architect"
+  },
+  {
+    id: "frontend_development", 
+    content: "Develop React components and user interface",
+    status: "pending",
+    priority: "medium",
+    dependencies: ["architecture_design"],
+    estimatedTime: "120min",
+    assignedAgent: "frontend_team"
+  }
+]);
+```
+
+### Task and Memory Integration
+Launch coordinated agents with shared memory:
+
+```javascript
+// Store architecture in memory
+Task("System Architect", "Design architecture and store specs in Memory");
+
+// Other agents use memory for coordination
+Task("Frontend Team", "Develop UI using Memory architecture specs");
+Task("Backend Team", "Implement APIs according to Memory specifications");
+```
+
+## Code Style Preferences
+- Use ES modules (import/export) syntax
+- Destructure imports when possible
+- Use TypeScript for all new code
+- Follow existing naming conventions
+- Add JSDoc comments for public APIs
+- Use async/await instead of Promise chains
+- Prefer const/let over var
+
+## Workflow Guidelines
+- Always run typecheck after making code changes
+- Run tests before committing changes
+- Use meaningful commit messages
+- Create feature branches for new functionality
+- Ensure all tests pass before merging
+
+## Important Notes
+- **Use TodoWrite extensively** for all complex task coordination
+- **Leverage Task tool** for parallel agent execution on independent work
+- **Store all important information in Memory** for cross-agent coordination
+- **Use batch file operations** whenever reading/writing multiple files
+- **Check .claude/commands/** for detailed command documentation
+- **All swarm operations include automatic batch tool coordination**
+- **Monitor progress** with TodoRead during long-running operations
+- **Enable parallel execution** with --parallel flags for maximum efficiency
+
+This configuration ensures optimal use of Claude Code's batch tools for swarm orchestration and parallel task execution with full Claude-Flow capabilities.
