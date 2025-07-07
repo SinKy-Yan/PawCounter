@@ -1,0 +1,125 @@
+{
+  "analysis_timestamp": "2025-07-07T16:00:00Z",
+  "analyzer": "swarm-auto-centralized-1751878040319/analyzer",
+  "findings": {
+    "total_abstraction_count": 7,
+    "redundant_abstractions": 5,
+    "necessary_abstractions": 2,
+    "complexity_score": "HIGH"
+  },
+  "abstractions_analyzed": [
+    {
+      "name": "CalculationFunction",
+      "type": "virtual_base_class",
+      "location": "src/CalculationEngine.h:65-108",
+      "implementations": 9,
+      "lines_of_code": 44,
+      "usage_frequency": "medium",
+      "complexity": "high",
+      "assessment": "REDUNDANT",
+      "reason": "可以用函数指针表或简单switch语句替代",
+      "simplification": "直接在CalculationEngine中实现数学函数"
+    },
+    {
+      "name": "CalculatorDisplay",
+      "type": "abstract_interface",
+      "location": "include/CalculatorDisplay_base.h:70-133",
+      "implementations": 1,
+      "lines_of_code": 64,
+      "usage_frequency": "low",
+      "complexity": "medium",
+      "assessment": "REDUNDANT",
+      "reason": "只有一个实现，抽象层不必要",
+      "simplification": "直接使用CalcDisplay，移除抽象层"
+    },
+    {
+      "name": "CalcDisplayAdapter",
+      "type": "adapter_pattern",
+      "location": "src/CalcDisplayAdapter.h:16-160",
+      "implementations": 1,
+      "lines_of_code": 145,
+      "usage_frequency": "low",
+      "complexity": "medium",
+      "assessment": "REDUNDANT",
+      "reason": "适配器模式不必要，功能可直接整合",
+      "simplification": "将适配器功能直接整合到CalculatorCore"
+    },
+    {
+      "name": "Logger",
+      "type": "singleton_pattern",
+      "location": "src/Logger.h:63-215",
+      "implementations": 1,
+      "lines_of_code": 353,
+      "usage_frequency": "high",
+      "complexity": "high",
+      "assessment": "OVER_ENGINEERED",
+      "reason": "复杂的单例模式，简单printf即可满足需求",
+      "simplification": "使用简单的日志宏，移除复杂的配置系统"
+    },
+    {
+      "name": "KeyboardConfigManager",
+      "type": "complex_configuration_system",
+      "location": "src/KeyboardConfig.h:123-305",
+      "implementations": 1,
+      "lines_of_code": 844,
+      "usage_frequency": "medium",
+      "complexity": "very_high",
+      "assessment": "REDUNDANT",
+      "reason": "过度工程化的配置系统，简单数组映射即可",
+      "simplification": "使用简单的静态按键映射表"
+    },
+    {
+      "name": "NumberFormatter",
+      "type": "utility_class",
+      "location": "src/NumberFormatter.h:25-94",
+      "implementations": 1,
+      "lines_of_code": 70,
+      "usage_frequency": "high",
+      "complexity": "low",
+      "assessment": "NECESSARY",
+      "reason": "简单实用的工具类，封装合理的数字格式化逻辑",
+      "simplification": "保留，但可简化为几个简单函数"
+    },
+    {
+      "name": "std::shared_ptr_usage",
+      "type": "smart_pointer_overuse",
+      "location": "main.cpp:28-31",
+      "implementations": "multiple",
+      "lines_of_code": "distributed",
+      "usage_frequency": "high",
+      "complexity": "medium",
+      "assessment": "REDUNDANT",
+      "reason": "在单一所有权场景中使用共享指针不必要",
+      "simplification": "大部分场景可使用unique_ptr或原始指针"
+    }
+  ],
+  "core_functionality_analysis": {
+    "essential_components": [
+      "CalculatorCore - 核心计算逻辑",
+      "CalcDisplay - 显示管理",
+      "KeypadControl - 按键处理",
+      "基础数学运算函数"
+    ],
+    "redundant_layers": [
+      "CalculatorDisplay抽象接口",
+      "CalcDisplayAdapter适配器",
+      "CalculationFunction虚函数族",
+      "复杂的KeyboardConfig系统",
+      "过度设计的Logger系统"
+    ]
+  },
+  "simplification_recommendations": {
+    "immediate_actions": [
+      "移除CalculatorDisplay抽象层",
+      "直接整合CalcDisplayAdapter到CalculatorCore",
+      "用简单数组替换KeyboardConfigManager",
+      "用函数替换CalculationFunction虚函数"
+    ],
+    "complexity_reduction": {
+      "before_loc": 5232,
+      "estimated_after_loc": 2800,
+      "reduction_percentage": 46.5
+    }
+  }
+}
+EOF < /dev/null

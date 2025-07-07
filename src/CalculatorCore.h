@@ -25,9 +25,8 @@
 #include "KeyboardConfig.h"
 
 // 前向声明
-class CalculatorDisplay;
+class CalcDisplay;
 class CalculationEngine;
-// class CalculatorMode; // 移除模式系统
 class NumberFormatter;
 
 // 使用 KeyboardConfig.h 中定义的枚举类型
@@ -44,17 +43,7 @@ enum class CalculatorState {
     WAITING             ///< 等待状态
 };
 
-/**
- * @brief 按键映射结构
- */
-struct KeyMapping {
-    uint8_t keyPosition;        ///< 物理按键位置 (1-22)
-    KeyType type;               ///< 按键类型
-    const char* symbol;         ///< 显示符号
-    const char* label;          ///< 按键标签
-    Operator operation;         ///< 对应的运算操作
-    uint8_t modeId;            ///< 适用的模式ID (0为通用)
-};
+// 旧的KeyMapping结构已被移除，使用KeyboardConfig系统中的KeyConfig
 
 /**
  * @brief 计算历史记录结构
@@ -112,7 +101,7 @@ public:
      * @brief 设置显示管理器
      * @param display 显示管理器指针
      */
-    void setDisplay(std::shared_ptr<CalculatorDisplay> display);
+    void setDisplay(CalcDisplay* display);
     
     /**
      * @brief 设置计算引擎
@@ -181,9 +170,8 @@ public:
 
 private:
     // 核心组件
-    std::shared_ptr<CalculatorDisplay> _display;        ///< 显示管理器
+    CalcDisplay* _display;                              ///< 显示管理器
     std::shared_ptr<CalculationEngine> _engine;         ///< 计算引擎
-    // std::vector<std::shared_ptr<CalculatorMode>> _modes; // 移除模式系统
     
     // 状态管理
     CalculatorState _state;             ///< 当前状态
@@ -210,16 +198,9 @@ private:
     double _memoryValue;               ///< 内存值
     bool _hasMemoryValue;              ///< 是否有内存值
     
-    // 按键映射
-    static const KeyMapping _keyMappings[];     ///< 按键映射表
-    static const size_t _keyMappingsSize;       ///< 映射表大小
-    
-    /**
-     * @brief 根据按键位置查找映射
-     * @param position 按键位置
-     * @return 按键映射指针，未找到返回nullptr
-     */
-    const KeyMapping* findKeyMapping(uint8_t position) const;
+    // 按键映射系统
+    static const KeyConfig _keyMappings[];          ///< 按键映射表
+    static const size_t _keyMappingsSize;           ///< 按键映射表大小
     
     /**
      * @brief 处理数字输入
@@ -233,11 +214,7 @@ private:
      */
     void handleOperatorInput(Operator op);
     
-    /**
-     * @brief 处理功能键输入 (兼容旧版)
-     * @param mapping 按键映射
-     */
-    void handleFunctionInput(const KeyMapping* mapping);
+    // 旧的handleFunctionInput(KeyMapping*)方法已被移除
     
     /**
      * @brief 处理功能键输入 (新版)
@@ -284,12 +261,7 @@ private:
      */
     void resetInputState();
     
-    /**
-     * @brief 格式化数字显示
-     * @param number 数字
-     * @return 格式化后的字符串
-     */
-    String formatNumber(double number) const;
+    // formatNumber方法已被移除，统一使用NumberFormatter::format
 };
 
 #endif // CALCULATOR_CORE_H

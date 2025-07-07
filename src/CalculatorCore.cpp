@@ -7,46 +7,45 @@
  */
 
 #include "CalculatorCore.h"
-#include "CalculatorDisplay_base.h"
+#include "calc_display.h"
 #include "CalculationEngine.h"
-// 移除模式系统相关代码
 #include "KeyboardConfig.h"
 #include "NumberFormatter.h"
 
 // 按键映射表定义（基于实际物理按键编号 1-22）
 // 修改后的布局：Key 19改为清除，Key 15改为向前删除，Key 6改为Tab
-const KeyMapping CalculatorCore::_keyMappings[] = {
+const KeyConfig CalculatorCore::_keyMappings[] = {
 // 物理按键编号 -> 实际按键功能
-{1,  KeyType::POWER,     "ON",  "POWER",     Operator::NONE,     0},  // Key 1: ON/OFF
-{2,  KeyType::NUMBER,    "7",   "SEVEN",     Operator::NONE,     0},  // Key 2: 7
-{3,  KeyType::NUMBER,    "4",   "FOUR",      Operator::NONE,     0},  // Key 3: 4
-{4,  KeyType::NUMBER,    "1",   "ONE",       Operator::NONE,     0},  // Key 4: 1
-{5,  KeyType::NUMBER,    "0",   "ZERO",      Operator::NONE,     0},  // Key 5: 0
-{6,  KeyType::MODE_SWITCH,"TAB", "LAYER_SWITCH", Operator::NONE, 0},  // Key 6: TAB (层级切换)
-{7,  KeyType::NUMBER,    "8",   "EIGHT",     Operator::NONE,     0},  // Key 7: 8
-{8,  KeyType::NUMBER,    "5",   "FIVE",      Operator::NONE,     0},  // Key 8: 5
-{9,  KeyType::NUMBER,    "2",   "TWO",       Operator::NONE,     0},  // Key 9: 2
-{10, KeyType::FUNCTION,  "%",   "PERCENT",   Operator::PERCENT,  0},  // Key 10: PCT
-{11, KeyType::NUMBER,    "9",   "NINE",      Operator::NONE,     0},  // Key 11: 9
-{12, KeyType::NUMBER,    "6",   "SIX",       Operator::NONE,     0},  // Key 12: 6
-{13, KeyType::NUMBER,    "3",   "THREE",     Operator::NONE,     0},  // Key 13: 3
-{14, KeyType::DECIMAL,   ".",   "DOT",       Operator::NONE,     0},  // Key 14: .
-{15, KeyType::FUNCTION,  "⌫",   "BACKSPACE", Operator::NONE,     0},  // Key 15: 向前删除
-{16, KeyType::OPERATOR,  "*",   "MUL",       Operator::MULTIPLY, 0},  // Key 16: MUL
-{17, KeyType::OPERATOR,  "-",   "SUB",       Operator::SUBTRACT, 0},  // Key 17: SUB
-{18, KeyType::OPERATOR,  "+",   "ADD",       Operator::ADD,      0},  // Key 18: ADD
-{19, KeyType::FUNCTION,  "C",   "CLEAR",     Operator::NONE,     0},  // Key 19: 清除
-{20, KeyType::FUNCTION,  "±",   "SIGN",      Operator::NONE,     0},  // Key 20: +/-
-{21, KeyType::OPERATOR,  "/",   "DIV",       Operator::DIVIDE,   0},  // Key 21: DIV
-{22, KeyType::FUNCTION,  "=",   "EQUALS",    Operator::EQUALS,   0}   // Key 22: EQ
+{1,  KeyType::POWER,     "ON",  "POWER",     Operator::NONE,     "",         0,  true},  // Key 1: ON/OFF
+{2,  KeyType::NUMBER,    "7",   "SEVEN",     Operator::NONE,     "",         0,  true},  // Key 2: 7
+{3,  KeyType::NUMBER,    "4",   "FOUR",      Operator::NONE,     "",         0,  true},  // Key 3: 4
+{4,  KeyType::NUMBER,    "1",   "ONE",       Operator::NONE,     "",         0,  true},  // Key 4: 1
+{5,  KeyType::NUMBER,    "0",   "ZERO",      Operator::NONE,     "",         0,  true},  // Key 5: 0
+{6,  KeyType::MODE_SWITCH,"TAB", "LAYER_SWITCH", Operator::NONE, "layer",    0,  true},  // Key 6: TAB (层级切换)
+{7,  KeyType::NUMBER,    "8",   "EIGHT",     Operator::NONE,     "",         0,  true},  // Key 7: 8
+{8,  KeyType::NUMBER,    "5",   "FIVE",      Operator::NONE,     "",         0,  true},  // Key 8: 5
+{9,  KeyType::NUMBER,    "2",   "TWO",       Operator::NONE,     "",         0,  true},  // Key 9: 2
+{10, KeyType::FUNCTION,  "%",   "PERCENT",   Operator::PERCENT,  "percent",  0,  true},  // Key 10: PCT
+{11, KeyType::NUMBER,    "9",   "NINE",      Operator::NONE,     "",         0,  true},  // Key 11: 9
+{12, KeyType::NUMBER,    "6",   "SIX",       Operator::NONE,     "",         0,  true},  // Key 12: 6
+{13, KeyType::NUMBER,    "3",   "THREE",     Operator::NONE,     "",         0,  true},  // Key 13: 3
+{14, KeyType::DECIMAL,   ".",   "DOT",       Operator::NONE,     "",         0,  true},  // Key 14: .
+{15, KeyType::FUNCTION,  "⌫",   "BACKSPACE", Operator::NONE,     "backspace", 0,  true},  // Key 15: 向前删除
+{16, KeyType::OPERATOR,  "*",   "MUL",       Operator::MULTIPLY, "",         0,  true},  // Key 16: MUL
+{17, KeyType::OPERATOR,  "-",   "SUB",       Operator::SUBTRACT, "",         0,  true},  // Key 17: SUB
+{18, KeyType::OPERATOR,  "+",   "ADD",       Operator::ADD,      "",         0,  true},  // Key 18: ADD
+{19, KeyType::FUNCTION,  "C",   "CLEAR",     Operator::NONE,     "clear",    0,  true},  // Key 19: 清除
+{20, KeyType::FUNCTION,  "±",   "SIGN",      Operator::NONE,     "sign",     0,  true},  // Key 20: +/-
+{21, KeyType::OPERATOR,  "/",   "DIV",       Operator::DIVIDE,   "",         0,  true},  // Key 21: DIV
+{22, KeyType::FUNCTION,  "=",   "EQUALS",    Operator::EQUALS,   "equals",   0,  true}   // Key 22: EQ
 };
 
 
 const size_t CalculatorCore::_keyMappingsSize = sizeof(_keyMappings) / sizeof(_keyMappings[0]);
 
 CalculatorCore::CalculatorCore() 
-    : _state(CalculatorState::INPUT_NUMBER)
-    // , _currentModeId(0) // 移除模式系统
+    : _display(nullptr)
+    , _state(CalculatorState::INPUT_NUMBER)
     , _lastError(CalculatorError::NONE)
     , _currentNumber(0.0)
     , _previousNumber(0.0)
@@ -183,7 +182,7 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
     return true;
 }
 
-void CalculatorCore::setDisplay(std::shared_ptr<CalculatorDisplay> display) {
+void CalculatorCore::setDisplay(CalcDisplay* display) {
     _display = display;
     CALC_LOG_I("显示管理器已设置");
 }
@@ -221,8 +220,13 @@ void CalculatorCore::updateDisplay() {
     if (_display) {
         Serial.printf("[Core] updateDisplay called: display='%s', expr='%s', state=%d\n",
                       _currentDisplay.c_str(), _expressionDisplay.c_str(), (int)_state);
-        _display->updateDisplay(_currentDisplay, _expressionDisplay, _state);
         
+        // 直接更新CalcDisplay
+        _display->updateExprDirect(_expressionDisplay);
+        _display->updateResultDirect(_currentDisplay);
+        _display->refresh();
+        
+        // 简化错误处理
         if (_lastError != CalculatorError::NONE) {
             String errorMsg = "Error: ";
             switch (_lastError) {
@@ -239,7 +243,8 @@ void CalculatorCore::updateDisplay() {
                     errorMsg += "未知错误";
                     break;
             }
-            _display->showError(_lastError, errorMsg);
+            _display->updateResultDirect(errorMsg);
+            _display->refresh();
         }
     }
 }
@@ -257,14 +262,7 @@ void CalculatorCore::update() {
 }
 
 // 私有方法实现
-const KeyMapping* CalculatorCore::findKeyMapping(uint8_t position) const {
-    for (size_t i = 0; i < _keyMappingsSize; i++) {
-        if (_keyMappings[i].keyPosition == position) {
-            return &_keyMappings[i];
-        }
-    }
-    return nullptr;
-}
+// findKeyMapping方法已被移除，现在使用KeyboardConfig系统
 
 void CalculatorCore::handleDigitInput(char digit) {
     CALC_LOG_D("数字输入: '%c', 当前状态=%d, 缓冲区='%s'", digit, (int)_state, _inputBuffer.c_str());
@@ -328,7 +326,7 @@ void CalculatorCore::handleOperatorInput(Operator op) {
     
     if (_state == CalculatorState::DISPLAY_RESULT) {
         // 如果当前显示结果，开始新的表达式
-        _expressionDisplay = formatNumber(_currentNumber) + opSymbol;
+        _expressionDisplay = NumberFormatter::format(_currentNumber) + opSymbol;
         _previousNumber = _currentNumber;
         _pendingOperator = op;
         
@@ -338,7 +336,7 @@ void CalculatorCore::handleOperatorInput(Operator op) {
         // 如果有待处理的运算符，先执行之前的计算
         if (_pendingOperator != Operator::NONE) {
             // 先将当前数字添加到表达式中
-            _expressionDisplay += formatNumber(_currentNumber);
+            _expressionDisplay += NumberFormatter::format(_currentNumber);
             
             // 执行计算但不修改表达式显示
             if (performCalculation()) {
@@ -351,10 +349,10 @@ void CalculatorCore::handleOperatorInput(Operator op) {
             // 将当前数字添加到表达式中
             if (_expressionDisplay.isEmpty()) {
                 // 第一个数字和运算符
-                _expressionDisplay = formatNumber(_currentNumber) + opSymbol;  
+                _expressionDisplay = NumberFormatter::format(_currentNumber) + opSymbol;  
             } else {
                 // 继续积累表达式：添加当前数字和新运算符
-                _expressionDisplay += formatNumber(_currentNumber) + opSymbol;
+                _expressionDisplay += NumberFormatter::format(_currentNumber) + opSymbol;
             }
         }
         
@@ -384,77 +382,7 @@ void CalculatorCore::handleOperatorInput(Operator op) {
     CALC_LOG_D("表达式累计: %s, 当前显示重置为 0", _expressionDisplay.c_str());
 }
 
-void CalculatorCore::handleFunctionInput(const KeyMapping* mapping) {
-    CALC_LOG_V("功能输入: %s", mapping->label);
-    
-    if (mapping->operation == Operator::EQUALS) {
-        if (_pendingOperator != Operator::NONE && !_expressionDisplay.isEmpty()) {
-            // 将最后输入的数字添加到表达式中，形成完整表达式
-            String completeExpression = _expressionDisplay + formatNumber(_currentNumber);
-            
-            // 执行计算
-            if (performCalculation()) {
-                // 计算完成后，_currentNumber已经是结果
-                double result = _currentNumber;
-                
-                // 新方案：表达式行显示"公式=结果"格式
-                _expressionDisplay = completeExpression + "=" + formatNumber(result);
-                _currentDisplay = formatNumber(result);   // 结果显示在主显示区
-                _state = CalculatorState::DISPLAY_RESULT;
-                
-                // 将完整表达式添加到历史记录
-                addToHistory(completeExpression, result);
-                
-                CALC_LOG_D("等号执行: %s", _expressionDisplay.c_str());
-            }
-        }
-    } else if (String(mapping->label) == "CLEAR") {
-        clearAll();
-    } else if (String(mapping->label) == "DELETE") {
-        // 删除最后一个字符
-        if (!_inputBuffer.isEmpty()) {
-            if (_inputBuffer.charAt(_inputBuffer.length() - 1) == '.') {
-                _hasDecimalPoint = false;
-            }
-            _inputBuffer.remove(_inputBuffer.length() - 1);
-            if (_inputBuffer.isEmpty()) {
-                _inputBuffer = "0";
-            }
-            _currentDisplay = _inputBuffer;
-            _currentNumber = _inputBuffer.toDouble();
-        }
-    } else if (String(mapping->label) == "SIGN") {
-        // 正负号切换
-        if (_inputBuffer.isEmpty() || _inputBuffer == "0") {
-            _inputBuffer = "0";
-        } else {
-            if (_inputBuffer.charAt(0) == '-') {
-                _inputBuffer = _inputBuffer.substring(1);
-            } else {
-                _inputBuffer = "-" + _inputBuffer;
-            }
-            _currentDisplay = _inputBuffer;
-            _currentNumber = _inputBuffer.toDouble();
-        }
-    } else if (String(mapping->label) == "PERCENT") {
-        // 百分号功能
-        _currentNumber = _currentNumber / 100.0;
-        _inputBuffer = formatNumber(_currentNumber);
-        _currentDisplay = _inputBuffer;
-    } else if (mapping->operation == Operator::SQUARE_ROOT) {
-        if (_engine) {
-            auto result = _engine->calculate(_currentNumber, Operator::SQUARE_ROOT);
-            if (result.isValid) {
-                _currentNumber = result.value;
-                _currentDisplay = formatNumber(_currentNumber);
-                _state = CalculatorState::DISPLAY_RESULT;
-                addToHistory("√" + formatNumber(_currentNumber), result.value);
-            } else {
-                setError(result.error);
-            }
-        }
-    }
-}
+// 旧的handleFunctionInput(KeyMapping*)方法已被移除，使用新的handleFunctionInput(KeyConfig*)
 
 bool CalculatorCore::performCalculation() {
     if (!_engine || _pendingOperator == Operator::NONE) {
@@ -470,7 +398,7 @@ bool CalculatorCore::performCalculation() {
         // 更新当前数字和显示
         _currentNumber = result.value;
         _previousNumber = result.value;  // 为链式运算准备
-        _currentDisplay = formatNumber(_currentNumber);
+        _currentDisplay = NumberFormatter::format(_currentNumber);
         
         // 重置运算符状态
         _pendingOperator = Operator::NONE;
@@ -517,10 +445,7 @@ void CalculatorCore::resetInputState() {
     _waitingForOperand = false;
 }
 
-String CalculatorCore::formatNumber(double number) const {
-    // 使用统一的NumberFormatter进行格式化
-    return NumberFormatter::format(number);
-}
+// formatNumber方法已被移除，统一使用NumberFormatter::format
 
 // ============================================================================
 // 新的按键处理方法实现
@@ -534,8 +459,8 @@ void CalculatorCore::handleFunctionInput(const KeyConfig* keyConfig) {
                    (int)_pendingOperator, _expressionDisplay.c_str());
         
         if (_pendingOperator != Operator::NONE && !_expressionDisplay.isEmpty()) {
-            // 将最后输入的数字添加到表达式中，形成完整表辽式
-            String completeExpression = _expressionDisplay + formatNumber(_currentNumber);
+            // 将最后输入的数字添加到表达式中，形成完整表达式
+            String completeExpression = _expressionDisplay + NumberFormatter::format(_currentNumber);
             
             // 执行计算
             if (performCalculation()) {
@@ -543,8 +468,8 @@ void CalculatorCore::handleFunctionInput(const KeyConfig* keyConfig) {
                 double result = _currentNumber;
                 
                 // 新方案：表达式行显示"公式=结果"格式
-                _expressionDisplay = completeExpression + "=" + formatNumber(result);
-                _currentDisplay = formatNumber(result);   // 结果显示在主显示区
+                _expressionDisplay = completeExpression + "=" + NumberFormatter::format(result);
+                _currentDisplay = NumberFormatter::format(result);   // 结果显示在主显示区
                 _state = CalculatorState::DISPLAY_RESULT;
                 
                 // 将完整表达式添加到历史记录
@@ -557,14 +482,14 @@ void CalculatorCore::handleFunctionInput(const KeyConfig* keyConfig) {
         // 处理百分比
         if (_state == CalculatorState::INPUT_NUMBER) {
             _currentNumber = _currentNumber / 100.0;
-            _currentDisplay = formatNumber(_currentNumber);
+            _currentDisplay = NumberFormatter::format(_currentNumber);
             _inputBuffer = _currentDisplay;
         }
     } else if (keyConfig->functionName == "sign") {
         // 处理正负号切换
         if (_state == CalculatorState::INPUT_NUMBER) {
             _currentNumber = -_currentNumber;
-            _currentDisplay = formatNumber(_currentNumber);
+            _currentDisplay = NumberFormatter::format(_currentNumber);
             _inputBuffer = _currentDisplay;
         }
     } else {

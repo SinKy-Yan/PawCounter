@@ -11,7 +11,7 @@
 #include "KeypadControl.h"
 #include "CalculatorCore.h"
 #include "calc_display.h"
-#include "CalcDisplayAdapter.h"
+// #include "CalcDisplayAdapter.h" - 已移除适配器层
 #include "CalculationEngine.h"
 
 
@@ -27,7 +27,7 @@ CRGB leds[NUM_LEDS];
 // 计算器系统
 std::shared_ptr<CalculationEngine> engine;
 std::unique_ptr<CalcDisplay> display;
-std::shared_ptr<CalcDisplayAdapter> displayAdapter;
+// CalcDisplayAdapter已被移除，直接使用CalcDisplay
 std::shared_ptr<CalculatorCore> calculator;
 
 
@@ -97,17 +97,16 @@ void setup() {
     // 使用Canvas优化显示性能，如果Canvas不可用则回退到直接使用gfx
     Arduino_GFX* displayTarget = canvas ? canvas : gfx;
     display = std::unique_ptr<CalcDisplay>(new CalcDisplay(displayTarget, DISPLAY_WIDTH, DISPLAY_HEIGHT));
-    displayAdapter = std::make_shared<CalcDisplayAdapter>(display.get());
+    // CalcDisplayAdapter已被移除，直接使用CalcDisplay
     LOG_I(TAG_MAIN, "显示管理器初始化完成");
     
     // 8. 创建计算器核心
     Serial.println("8. 初始化计算器核心...");
     calculator = std::make_shared<CalculatorCore>();
-    calculator->setDisplay(displayAdapter);
+    calculator->setDisplay(display.get());
     calculator->setCalculationEngine(engine);
     
-    // 设置适配器的计算器核心引用（用于获取历史记录）
-    displayAdapter->setCalculatorCore(calculator.get());
+    // CalcDisplayAdapter已被移除，直接使用CalcDisplay
     
     if (!calculator->begin()) {
         LOG_E(TAG_MAIN, "计算器核心初始化失败");
@@ -117,16 +116,14 @@ void setup() {
     LOG_I(TAG_MAIN, "计算器核心初始化完成");
     
     // 9. 初始化计算器界面（直接进入计算器）
-    if (calculator && displayAdapter) {
+    if (calculator && display) {
         // 清除所有内容，设置初始状态
         calculator->clearAll();
         
         // 立即刷新显示，显示计算器界面（显示"0"）
-        displayAdapter->updateDisplay(
-            calculator->getCurrentDisplay(),
-            "",  // 表达式为空
-            calculator->getState()
-        );
+        display->updateExprDirect("");
+        display->updateResultDirect(calculator->getCurrentDisplay());
+        display->refresh();
         
         LOG_I(TAG_MAIN, "计算器界面已就绪");
     }
@@ -279,7 +276,7 @@ void onKeyEvent(KeyEventType type, uint8_t key, uint8_t* combo, uint8_t count) {
             calculator->handleKeyInput(key);
             
             // 移除强制刷新，避免在动画执行期间提前绘制目标文本导致闪烁/重影
-            // 如果后续需要手动刷新，可在确认无活动动画时调用 displayAdapter->updateDisplay()
+            // 如果后续需要手动刷新，可在确认无活动动画时调用 display->updateDisplay()
         }
         
         // 简单的按键反馈（LED亮起）
