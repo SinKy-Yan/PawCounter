@@ -81,7 +81,25 @@ void setup() {
     Serial.println("5. 初始化键盘系统...");
     keypad.begin();
     keypad.setKeyEventCallback(onKeyEvent);
-    LOG_I(TAG_MAIN, "键盘系统初始化完成");
+    
+    // 配置按键反馈效果
+    Serial.println("  - 配置按键反馈效果...");
+    KeyFeedback defaultFeedback = {
+        .enabled = true,
+        .color = CRGB::Blue,
+        .ledMode = LED_FADE,
+        .buzzFreq = 2000,
+        .buzzDuration = 50
+    };
+    
+    // 为所有22个按键配置反馈效果
+    for (uint8_t i = 1; i <= 22; i++) {
+        keypad.setKeyFeedback(i, defaultFeedback);
+    }
+    
+    // 启用蜂鸣器跟随按键
+    keypad.setBuzzerFollowKey(true, false);
+    LOG_I(TAG_MAIN, "键盘系统初始化完成，已配置按键反馈效果");
     
     // 6. 创建计算引擎
     Serial.println("6. 初始化计算引擎...");
@@ -329,6 +347,10 @@ void handleSerialCommands() {
             Serial.println("  config        - 显示当前加载的配置");
             Serial.println("  sleep <sec>   - 设置自动休眠时间(秒)");
             Serial.println("  sleep off     - 关闭自动休眠功能");
+            Serial.println("  test_feedback <key> - 测试按键反馈效果");
+            Serial.println("  buzzer <freq> <duration> - 测试蜂鸣器");
+            Serial.println("  piano_mode <on|off> - 切换钢琴模式（老式电话拨号音）");
+            Serial.println("  piano_test - 测试钢琴音阶（播放22个音符）");
         } else if (cmd.equalsIgnoreCase("status")) {
             Serial.println("系统状态:");
             Serial.printf(" - 可用堆内存: %d 字节\n", ESP.getFreeHeap());
@@ -431,6 +453,72 @@ void handleSerialCommands() {
             }
             SleepManager::instance().feed();   // 命令本身也算活动
         }
+        else if (cmd.startsWith("test_feedback")) {
+            int key;
+            if (sscanf(cmd.c_str(), "test_feedback %d", &key) == 1) {
+                if (key >= 1 && key <= 22) {
+                    Serial.printf("测试按键 %d 反馈效果\n", key);
+                    // 模拟按键按下事件
+                    onKeyEvent(KEY_EVENT_PRESS, key, nullptr, 0);
+                    delay(100);
+                    onKeyEvent(KEY_EVENT_RELEASE, key, nullptr, 0);
+                } else {
+                    Serial.println("按键编号必须在 1-22 之间");
+                }
+            } else {
+                Serial.println("无效的 'test_feedback' 命令格式. 使用: test_feedback <key>");
+            }
+        }
+        else if (cmd.startsWith("buzzer")) {
+            int freq, duration;
+            if (sscanf(cmd.c_str(), "buzzer %d %d", &freq, &duration) == 2) {
+                if (freq > 0 && duration > 0) {
+                    Serial.printf("测试蜂鸣器: %d Hz, %d ms\n", freq, duration);
+                    BuzzerConfig testConfig = {
+                        .enabled = true,
+                        .followKeypress = false,
+                        .dualTone = false,
+                        .volume = BUZZER_MEDIUM,
+                        .pressFreq = (uint16_t)freq,
+                        .releaseFreq = 0,
+                        .duration = (uint16_t)duration
+                    };
+                    keypad.configureBuzzer(testConfig);
+                    // 临时启用蜂鸣器，直接调用startBuzzer
+                    keypad.startBuzzer(freq, duration);
+                } else {
+                    Serial.println("频率和持续时间必须大于0");
+                }
+            } else {
+                Serial.println("无效的 'buzzer' 命令格式. 使用: buzzer <freq> <duration>");
+            }
+        }
+        else if (cmd.startsWith("piano_mode")) {
+            if (cmd.endsWith("on")) {
+                keypad.setBuzzerMode(BUZZER_MODE_PIANO);
+                Serial.println("✅ 钢琴模式已启用 - 每个按键将播放不同的钢琴音调");
+            } else if (cmd.endsWith("off")) {
+                keypad.setBuzzerMode(BUZZER_MODE_NORMAL);
+                Serial.println("✅ 钢琴模式已关闭 - 恢复普通蜂鸣器模式");
+            } else {
+                Serial.println("无效的 'piano_mode' 命令格式. 使用: piano_mode <on|off>");
+            }
+        }
+        else if (cmd.equalsIgnoreCase("piano_test")) {
+            Serial.println("🎹 播放钢琴音阶测试 (C4-A5)...");
+            // 临时启用钢琴模式进行测试
+            keypad.setBuzzerMode(BUZZER_MODE_PIANO);
+            
+            // 播放22个音符
+            for (int i = 1; i <= 22; i++) {
+                Serial.printf("播放按键 %d ", i);
+                onKeyEvent(KEY_EVENT_PRESS, i, nullptr, 0);
+                delay(200);  // 每个音符间隔200ms
+            }
+            
+            Serial.println("\n🎵 钢琴音阶测试完成");
+            Serial.println("💡 使用 'piano_mode off' 恢复普通模式");
+        }
         else {
             Serial.printf("未知命令: '%s'\n", cmd.c_str());
         }
@@ -440,6 +528,9 @@ void handleSerialCommands() {
 void updateSystems() {
     // 更新键盘扫描
     keypad.update();
+    
+    // 更新LED效果
+    keypad.updateLEDEffects();
     
     // 更新背光控制
     BacklightControl::getInstance().update();

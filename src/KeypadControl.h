@@ -63,14 +63,23 @@ struct KeyFeedback {
 };
 
 /**
+ * @brief 蜂鸣器模式枚举
+ */
+enum BuzzerMode {
+    BUZZER_MODE_NORMAL,     ///< 普通模式（固定音调）
+    BUZZER_MODE_PIANO       ///< 钢琴模式（按键音阶）
+};
+
+/**
  * @brief 蜂鸣器配置结构体
  */
 struct BuzzerConfig {
     bool enabled;            ///< 是否启用蜂鸣器
     bool followKeypress;     ///< 是否跟随按键
     bool dualTone;          ///< 是否使用双音效（按下/释放不同音调）
+    BuzzerMode mode;        ///< 蜂鸣器模式
     BuzzerVolume volume;    ///< 音量等级
-    uint16_t pressFreq;     ///< 按下音调频率
+    uint16_t pressFreq;     ///< 按下音调频率（普通模式）
     uint16_t releaseFreq;   ///< 释放音调频率（仅在dualTone为true时使用）
     uint16_t duration;      ///< 蜂鸣持续时间
 };
@@ -197,6 +206,19 @@ public:
      */
     void setBuzzerFollowKey(bool enable, bool dualTone = false);
 
+    /**
+     * @brief 设置蜂鸣器模式
+     * @param mode 蜂鸣器模式
+     */
+    void setBuzzerMode(BuzzerMode mode);
+
+    /**
+     * @brief 启动蜂鸣器（用于测试）
+     * @param freq 频率
+     * @param duration 持续时间
+     */
+    void startBuzzer(uint16_t freq, uint16_t duration);
+
     #ifdef DEBUG_MODE
     /**
      * @brief 打印调试信息
@@ -231,6 +253,7 @@ private:
 
     // 常量定义
     static const uint8_t KEY_POSITIONS[22];  ///< 按键位置映射表
+    static const uint16_t PIANO_TONES[22];   ///< 钢琴音阶频率表
     static const uint32_t DEBOUNCE_DELAY = 20;     ///< 去抖延迟(ms)
     static const uint32_t UPDATE_INTERVAL = 10;     ///< 更新间隔(ms)
     static const uint32_t DEFAULT_REPEAT_DELAY = 500;  ///< 默认重复延迟
@@ -312,13 +335,6 @@ private:
      * @return PWM占空比值
      */
     uint8_t getVolumeDuty(BuzzerVolume volume) const;
-
-    /**
-     * @brief 启动蜂鸣器
-     * @param freq 频率
-     * @param duration 持续时间
-     */
-    void startBuzzer(uint16_t freq, uint16_t duration);
 
     /**
      * @brief 更新蜂鸣器状态

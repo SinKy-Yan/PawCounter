@@ -50,6 +50,32 @@ const uint8_t KeypadControl::KEY_POSITIONS[] = {
     19   // Key 22: 第19位
 };
 
+// 钢琴音阶频率表定义（C4到A5，22个音符）
+const uint16_t KeypadControl::PIANO_TONES[] = {
+    262,  // Key 1:  C4
+    277,  // Key 2:  C#4
+    294,  // Key 3:  D4
+    311,  // Key 4:  D#4
+    330,  // Key 5:  E4
+    349,  // Key 6:  F4
+    370,  // Key 7:  F#4
+    392,  // Key 8:  G4
+    415,  // Key 9:  G#4
+    440,  // Key 10: A4
+    466,  // Key 11: A#4
+    494,  // Key 12: B4
+    523,  // Key 13: C5
+    554,  // Key 14: C#5
+    587,  // Key 15: D5
+    622,  // Key 16: D#5
+    659,  // Key 17: E5
+    698,  // Key 18: F5
+    740,  // Key 19: F#5
+    784,  // Key 20: G5
+    831,  // Key 21: G#5
+    880   // Key 22: A5
+};
+
 KeypadControl::KeypadControl()
     : _currentState(0xFFFFFF), 
       _lastState(0xFFFFFF),
@@ -73,6 +99,7 @@ KeypadControl::KeypadControl()
         .enabled = true,
         .followKeypress = true,
         .dualTone = false,
+        .mode = BUZZER_MODE_NORMAL,  // 默认普通模式
         .volume = BUZZER_MEDIUM,
         .pressFreq = 2000,      // 2kHz按下音调
         .releaseFreq = 1500,    // 1.5kHz释放音调
@@ -96,8 +123,12 @@ void KeypadControl::begin() {
     digitalWrite(SCAN_CLK_PIN, LOW);
     KEYPAD_LOG_D("初始引脚状态设置完成");
 
-    // 蜂鸣器由 BuzzerSoundManager 统一管理，此处不再初始化
-    KEYPAD_LOG_D("蜂鸣器由BuzzerSoundManager统一管理");
+    // 初始化蜂鸣器LEDC
+    ledcSetup(BUZZER_CHANNEL, 2000, 8);  // 通道2，2kHz，8位分辨率
+    ledcAttachPin(BUZZ_PIN, BUZZER_CHANNEL);
+    _buzzerActive = false;
+    _buzzerEndTime = 0;
+    KEYPAD_LOG_D("蜂鸣器LEDC初始化完成");
     
     KEYPAD_LOG_I("按键控制系统初始化成功");
 }
@@ -265,23 +296,33 @@ void KeypadControl::handleKeyEvent(KeyEventType type, uint8_t key) {
         
         // 蜂鸣器反馈
         if (_buzzerConfig.followKeypress) {
+            uint16_t freq = _buzzerConfig.pressFreq;  // 默认频率
+            
+            // 根据蜂鸣器模式选择频率
+            if (_buzzerConfig.mode == BUZZER_MODE_PIANO && key >= 1 && key <= 22) {
+                freq = PIANO_TONES[key - 1];  // 使用钢琴音调
+            }
+            
             switch (type) {
                 case KEY_EVENT_PRESS:
-                    startBuzzer(_buzzerConfig.pressFreq, _buzzerConfig.duration);
+                    startBuzzer(freq, _buzzerConfig.duration);
                     break;
                     
                 case KEY_EVENT_RELEASE:
                     if (_buzzerConfig.dualTone) {
-                        startBuzzer(_buzzerConfig.releaseFreq, _buzzerConfig.duration);
+                        uint16_t releaseFreq = (_buzzerConfig.mode == BUZZER_MODE_PIANO && key >= 1 && key <= 22) 
+                                             ? PIANO_TONES[key - 1] * 0.8  // 钢琴模式下释放音调略低
+                                             : _buzzerConfig.releaseFreq;
+                        startBuzzer(releaseFreq, _buzzerConfig.duration);
                     }
                     break;
                     
                 case KEY_EVENT_LONGPRESS:
-                    startBuzzer(_buzzerConfig.pressFreq * 1.5, _buzzerConfig.duration * 1.5);
+                    startBuzzer(freq * 1.2, _buzzerConfig.duration * 1.5);  // 长按音调略高
                     break;
                     
                 case KEY_EVENT_REPEAT:
-                    startBuzzer(_buzzerConfig.pressFreq, _buzzerConfig.duration / 2);
+                    startBuzzer(freq, _buzzerConfig.duration / 2);
                     break;
                     
                 default:
@@ -304,6 +345,11 @@ void KeypadControl::setBuzzerFollowKey(bool enable, bool dualTone) {
     _buzzerConfig.dualTone = dualTone;
 }
 
+void KeypadControl::setBuzzerMode(BuzzerMode mode) {
+    _buzzerConfig.mode = mode;
+    KEYPAD_LOG_I("蜂鸣器模式设置为: %s", (mode == BUZZER_MODE_PIANO) ? "钢琴模式" : "普通模式");
+}
+
 uint8_t KeypadControl::getVolumeDuty(BuzzerVolume volume) const {
     switch (volume) {
         case BUZZER_MUTE:   return 0;
@@ -315,14 +361,27 @@ uint8_t KeypadControl::getVolumeDuty(BuzzerVolume volume) const {
 }
 
 void KeypadControl::startBuzzer(uint16_t freq, uint16_t duration) {
-    // 蜂鸣器功能已移至 BuzzerSoundManager，此方法保留接口兼容性
-    KEYPAD_LOG_D("蜂鸣器调用被重定向到BuzzerSoundManager (频率=%d, 持续时间=%d)", freq, duration);
-    // 实际蜂鸣器控制由 BuzzerSoundManager 处理
+    if (!_buzzerConfig.enabled) return;
+    
+    // 设置频率和占空比
+    ledcWriteTone(BUZZER_CHANNEL, freq);
+    uint8_t duty = getVolumeDuty(_buzzerConfig.volume);
+    ledcWrite(BUZZER_CHANNEL, duty);
+    
+    // 设置结束时间
+    _buzzerActive = true;
+    _buzzerEndTime = millis() + duration;
+    
+    KEYPAD_LOG_D("蜂鸣器启动: 频率=%d Hz, 持续时间=%d ms, 占空比=%d", freq, duration, duty);
 }
 
 void KeypadControl::updateBuzzer() {
-    // 蜂鸣器更新由 BuzzerSoundManager 处理，此方法保留接口兼容性
-    // 不再执行任何硬件操作
+    if (_buzzerActive && millis() >= _buzzerEndTime) {
+        // 停止蜂鸣器
+        ledcWrite(BUZZER_CHANNEL, 0);
+        _buzzerActive = false;
+        KEYPAD_LOG_D("蜂鸣器停止");
+    }
 }
 
 void KeypadControl::handleLEDEffect(uint8_t ledIndex, LEDMode mode, CRGB color) {
