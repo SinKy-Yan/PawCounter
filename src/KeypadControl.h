@@ -92,6 +92,9 @@ typedef void (*KeyEventCallback)(KeyEventType type, uint8_t key, uint8_t* combo,
 /**
  * @brief 键盘控制类
  */
+// 前向声明
+class SimpleHID;
+
 class KeypadControl {
 public:
     /**
@@ -219,6 +222,24 @@ public:
     const BuzzerConfig& getBuzzerConfig() const { return _buzzerConfig; }
 
     /**
+     * @brief 设置简单HID处理器
+     * @param hid 简单HID处理器指针
+     */
+    void setSimpleHID(SimpleHID* hid);
+
+    /**
+     * @brief 启用/禁用HID功能
+     * @param enabled true启用，false禁用
+     */
+    void setHIDEnabled(bool enabled);
+
+    /**
+     * @brief 检查HID功能是否启用
+     * @return true启用，false禁用
+     */
+    bool isHIDEnabled() const { return _hidEnabled; }
+
+    /**
      * @brief 启动蜂鸣器（用于测试）
      * @param freq 频率
      * @param duration 持续时间
@@ -291,6 +312,10 @@ private:
     BuzzerConfig _buzzerConfig; ///< 蜂鸣器配置
     bool _buzzerActive;         ///< 蜂鸣器是否正在发声
     uint32_t _buzzerEndTime;    ///< 蜂鸣器结束时间
+
+    // HID相关成员
+    SimpleHID* _simpleHID;      ///< 简单HID处理器
+    bool _hidEnabled;           ///< HID功能是否启用
 
     // 内部函数
     /**

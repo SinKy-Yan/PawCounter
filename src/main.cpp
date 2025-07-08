@@ -15,6 +15,7 @@
 #include "KeyboardConfig.h"   // 新增：用于打印键盘配置
 #include "SleepManager.h"  // 新增：休眠管理器头文件
 #include "ConfigManager.h"  // 新增：配置管理器
+#include "SimpleHID.h"  // 简单HID功能
 
 
 // 全局对象
@@ -31,6 +32,9 @@ std::shared_ptr<CalculationEngine> engine;
 std::unique_ptr<CalcDisplay> display;
 // CalcDisplayAdapter已被移除，直接使用CalcDisplay
 std::shared_ptr<CalculatorCore> calculator;
+
+// HID系统组件
+std::unique_ptr<SimpleHID> simpleHID;
 
 
 // 函数声明
@@ -193,6 +197,25 @@ void setup() {
         }
     );
     LOG_I(TAG_MAIN, "休眠管理器初始化完成");
+    
+    // 12. 初始化简单HID系统
+    Serial.println("12. 初始化简单HID键盘系统...");
+    
+    // 初始化简单HID功能
+    simpleHID = std::unique_ptr<SimpleHID>(new SimpleHID());
+    if (!simpleHID->begin()) {
+        LOG_E(TAG_MAIN, "简单HID系统初始化失败");
+        Serial.println("⚠️ 简单HID系统初始化失败");
+        simpleHID.reset();  // 释放资源
+    } else {
+        LOG_I(TAG_MAIN, "简单HID系统初始化完成");
+        Serial.println("✅ 简单HID功能已启用 - 按键将同时触发计算器和USB键盘功能");
+        
+        // 将简单HID设置到按键控制器
+        keypad.setSimpleHID(simpleHID.get());
+        keypad.setHIDEnabled(true);  // 启用HID功能
+    }
+    
     Serial.println("=== 计算器系统启动完成 ===");
     Serial.println("系统就绪，发送 'help' 查看命令");
     
@@ -351,6 +374,8 @@ void onKeyEvent(KeyEventType type, uint8_t key, uint8_t* combo, uint8_t count) {
     // 简化串口输出
     Serial.printf("按键事件: Key=%d, Event=%s\n", key, eventStr);
     
+    // HID 处理已由 KeypadControl 内部完成，无需单独 usbHID
+    
     // 仅在按下/长按时处理输入，忽略释放等其他事件
     if (calculator) {
         if (type == KEY_EVENT_PRESS) {
@@ -393,6 +418,9 @@ void handleSerialCommands() {
             Serial.println("  show_config - 显示当前配置");
             Serial.println("  config_info - 显示配置系统信息");
             Serial.println("  auto_save <on|off> - 开启/关闭自动保存");
+            Serial.println("  hid_status - 显示简单HID状态");
+            Serial.println("  hid_test <key> - 测试HID按键发送");
+            Serial.println("  hid_enable <on|off> - 启用/禁用HID功能");
         } else if (cmd.equalsIgnoreCase("status")) {
             Serial.println("系统状态:");
             Serial.printf(" - 可用堆内存: %d 字节\n", ESP.getFreeHeap());
@@ -638,6 +666,59 @@ void handleSerialCommands() {
                 Serial.println("无效的 'auto_save' 命令格式. 使用: auto_save <on|off>");
             }
         }
+        else if (cmd.equalsIgnoreCase("hid_status")) {
+            Serial.println("=== 简单HID系统状态 ===");
+            if (simpleHID) {
+                Serial.printf(" - HID功能: %s\n", simpleHID->isEnabled() ? "已启用" : "已禁用");
+                Serial.printf(" - USB连接: %s\n", simpleHID->isConnected() ? "已连接" : "未连接");
+                Serial.printf(" - 功能模式: 并行模式（计算器+HID键盘同时生效）\n");
+                Serial.printf(" - GPIO19 (USB_DN): 自动配置为USB D-信号\n");
+                Serial.printf(" - GPIO20 (USB_DP): 自动配置为USB D+信号\n");
+                simpleHID->printDebugInfo();
+            } else {
+                Serial.println(" - HID功能: 未初始化");
+            }
+        }
+        else if (cmd.startsWith("hid_test")) {
+            if (simpleHID && simpleHID->isEnabled()) {
+                int key;
+                if (sscanf(cmd.c_str(), "hid_test %d", &key) == 1) {
+                    if (key >= 1 && key <= 22) {
+                        Serial.printf("测试HID按键 %d 发送\n", key);
+                        // 模拟按键按下和释放
+                        simpleHID->handleKey(key, true);   // 按下
+                        delay(100);
+                        simpleHID->handleKey(key, false);  // 释放
+                        Serial.println("HID按键测试完成");
+                    } else {
+                        Serial.println("按键编号必须在 1-22 之间");
+                    }
+                } else {
+                    Serial.println("无效的 'hid_test' 命令格式. 使用: hid_test <key>");
+                }
+            } else {
+                Serial.println("HID功能未启用或未初始化");
+            }
+        }
+        else if (cmd.startsWith("hid_enable")) {
+            if (simpleHID) {
+                String param = cmd.substring(11);
+                param.trim();
+                if (param.equalsIgnoreCase("on")) {
+                    keypad.setHIDEnabled(true);
+                    simpleHID->setEnabled(true);
+                    Serial.println("✅ HID功能已启用");
+                } else if (param.equalsIgnoreCase("off")) {
+                    keypad.setHIDEnabled(false);
+                    simpleHID->setEnabled(false);
+                    Serial.println("✅ HID功能已禁用");
+                } else {
+                    Serial.println("无效参数。使用: hid_enable on 或 hid_enable off");
+                }
+            } else {
+                Serial.println("HID功能未初始化");
+            }
+        }
         else {
             Serial.printf("未知命令: '%s'\n", cmd.c_str());
         }
@@ -661,6 +742,8 @@ void updateSystems() {
     if (calculator) {
         calculator->update();
     }
+    
+    // 简单HID无需更新（无状态设计）
     
     // 更新配置管理器（自动保存）
     ConfigManager::getInstance().saveIfDirty();

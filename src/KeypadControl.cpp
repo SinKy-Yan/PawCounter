@@ -22,6 +22,7 @@
  */
 
 #include "KeypadControl.h"
+#include "SimpleHID.h"
 #include "Logger.h"
 
 // 按键位置映射表定义
@@ -87,7 +88,9 @@ KeypadControl::KeypadControl()
       _repeatDelay(DEFAULT_REPEAT_DELAY),
       _repeatRate(DEFAULT_REPEAT_RATE),
       _longPressDelay(DEFAULT_LONGPRESS_DELAY),
-      _globalBrightness(255) {
+      _globalBrightness(255),
+      _simpleHID(nullptr),
+      _hidEnabled(false) {
     
     // 初始化按键状态数组
     memset(_keyStates, 0, sizeof(_keyStates));
@@ -235,7 +238,8 @@ void KeypadControl::checkComboKeys() {
     if (_pressedKeyCount > 1 && _pressedKeyCount <= 5) {
         // 复制当前按下的键到组合键缓冲区
         memcpy(_comboBuffer, _pressedKeys, _pressedKeyCount);
-        // 触发组合键事件 - 使用第一个键作为主键
+        
+        // 直接触发注册的回调
         if (_eventCallback) {
             _eventCallback(KEY_EVENT_COMBO, _comboBuffer[0], _comboBuffer, _pressedKeyCount);
         }
@@ -283,9 +287,23 @@ void KeypadControl::handleKeyEvent(KeyEventType type, uint8_t key) {
             break;
     }
     
-    // 触发回调
+    // 并行处理：同时触发计算器功能和HID功能
+    
+    // 1. 首先触发计算器回调（原有功能）
     if (_eventCallback) {
         _eventCallback(type, key, nullptr, 0);
+    }
+    
+    // 2. 同时处理HID功能（新增功能）
+    if (_hidEnabled && _simpleHID) {
+        bool pressed = (type == KEY_EVENT_PRESS || type == KEY_EVENT_LONGPRESS || type == KEY_EVENT_REPEAT);
+        bool released = (type == KEY_EVENT_RELEASE);
+        
+        if (pressed) {
+            _simpleHID->handleKey(key, true);
+        } else if (released) {
+            _simpleHID->handleKey(key, false);
+        }
     }
     
     // 处理按键反馈
@@ -541,6 +559,18 @@ uint8_t KeypadControl::getPressedKeys(uint8_t* keyBuffer, uint8_t bufferSize) co
         memcpy(keyBuffer, _pressedKeys, count);
     }
     return count;
+}
+
+void KeypadControl::setSimpleHID(SimpleHID* hid) {
+    _simpleHID = hid;
+    KEYPAD_LOG_I("简单HID处理器已设置");
+}
+
+void KeypadControl::setHIDEnabled(bool enabled) {
+    if (_hidEnabled != enabled) {
+        _hidEnabled = enabled;
+        KEYPAD_LOG_I("HID功能已%s", enabled ? "启用" : "禁用");
+    }
 }
 
 #ifdef DEBUG_MODE

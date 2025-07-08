@@ -9,6 +9,7 @@
 
 // =================== 功能开关 ===================
 #define DEBUG_MODE                      // 启用调试模式
+#define USB_HID_ENABLED                 // 启用USB HID功能
 
 
 // =================== WiFi和OTA配置 ===================
@@ -41,6 +42,14 @@
 #define LED_BRIGHTNESS 255 // LED默认亮度 (0-255)
 #define LED_FADE_DURATION 500  // LED渐变持续时间(ms)
 extern CRGB leds[NUM_LEDS];
+
+// =================== USB HID引脚定义 ===================
+#ifdef USB_HID_ENABLED
+#define USB_DN_PIN    19              // USB D- (GPIO19)
+#define USB_DP_PIN    20              // USB D+ (GPIO20)
+// 注意：ESP32-S3的GPIO19和GPIO20是专用USB引脚，
+// 当启用USB HID功能时会自动配置为USB信号
+#endif
 
 
 // =================== 硬件控制参数 ===================
