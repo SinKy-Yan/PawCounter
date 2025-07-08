@@ -17,6 +17,13 @@
 #include "ConfigManager.h"  // 新增：配置管理器
 #include "SimpleHID.h"  // 简单HID功能
 
+// LVGL演示 - 定义此宏以启用LVGL Hello World演示
+#define ENABLE_LVGL_DEMO
+
+#ifdef ENABLE_LVGL_DEMO
+void lvglHelloWorldDemo(); // 外部函数声明
+#endif
+
 
 // 全局对象
 Arduino_DataBus *bus = nullptr;
@@ -47,6 +54,12 @@ void updateSystems();
 void setup() {
     Serial.begin(115200);
     delay(1000); // 等待串口稳定
+    
+#ifdef ENABLE_LVGL_DEMO
+    Serial.println("=== LVGL Hello World 演示模式 ===");
+    lvglHelloWorldDemo();
+    return; // 演示模式不执行常规初始化
+#endif
     
     Serial.println("=== ESP32-S3 计算器系统启动 ===");
 #ifdef DEBUG_MODE
