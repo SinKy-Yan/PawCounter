@@ -25,9 +25,10 @@
 #include "KeyboardConfig.h"
 
 // 前向声明
-class CalcDisplay;
 class CalculationEngine;
 class NumberFormatter;
+class LVGLDisplay;
+class LVGLCalculatorUI;
 
 // 使用 KeyboardConfig.h 中定义的枚举类型
 // 避免重复定义 KeyType 和 Operator
@@ -98,10 +99,10 @@ public:
     bool handleKeyInput(uint8_t keyPosition, bool isLongPress = false);
     
     /**
-     * @brief 设置显示管理器
-     * @param display 显示管理器指针
+     * @brief 设置LVGL显示管理器
+     * @param display LVGL显示管理器指针
      */
-    void setDisplay(CalcDisplay* display);
+    void setLVGLDisplay(LVGLDisplay* display);
     
     /**
      * @brief 设置计算引擎
@@ -164,13 +165,19 @@ public:
     void updateDisplay();
     
     /**
+     * @brief 初始化LVGL UI
+     */
+    void initLVGLUI();
+    
+    /**
      * @brief 定期更新
      */
     void update();
 
 private:
     // 核心组件
-    CalcDisplay* _display;                              ///< 显示管理器
+    LVGLDisplay* _lvgl_display;                         ///< LVGL显示管理器
+    std::unique_ptr<LVGLCalculatorUI> _lvgl_ui;         ///< LVGL计算器UI
     std::shared_ptr<CalculationEngine> _engine;         ///< 计算引擎
     
     // 状态管理

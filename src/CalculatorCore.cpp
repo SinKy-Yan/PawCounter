@@ -7,7 +7,8 @@
  */
 
 #include "CalculatorCore.h"
-#include "calc_display.h"
+#include "LVGLDisplay.h"
+#include "LVGLCalculatorUI.h"
 #include "CalculationEngine.h"
 #include "KeyboardConfig.h"
 #include "NumberFormatter.h"
@@ -15,7 +16,8 @@
 // 按键映射表已移除，现在使用KeyboardConfig系统
 
 CalculatorCore::CalculatorCore() 
-    : _display(nullptr)
+    : _lvgl_display(nullptr)
+    , _lvgl_ui(nullptr)
     , _state(CalculatorState::INPUT_NUMBER)
     , _lastError(CalculatorError::NONE)
     , _currentNumber(0.0)
@@ -153,9 +155,9 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
     return true;
 }
 
-void CalculatorCore::setDisplay(CalcDisplay* display) {
-    _display = display;
-    CALC_LOG_I("显示管理器已设置");
+void CalculatorCore::setLVGLDisplay(LVGLDisplay* display) {
+    _lvgl_display = display;
+    CALC_LOG_I("LVGL显示管理器已设置");
 }
 
 void CalculatorCore::setCalculationEngine(std::shared_ptr<CalculationEngine> engine) {
@@ -188,39 +190,68 @@ void CalculatorCore::clearAll() {
 }
 
 void CalculatorCore::updateDisplay() {
-    if (_display) {
-        Serial.printf("[核心] updateDisplay 调用: 显示='%s', 表达式='%s', 状态=%d\n",
-                      _currentDisplay.c_str(), _expressionDisplay.c_str(), (int)_state);
-        
-        // 直接更新CalcDisplay
-        _display->updateExprDirect(_expressionDisplay);
-        _display->updateResultDirect(_currentDisplay);
-        _display->refresh();
-        
-        // 简化错误处理
-        if (_lastError != CalculatorError::NONE) {
-            String errorMsg = "错误: ";
-            switch (_lastError) {
-                case CalculatorError::DIVISION_BY_ZERO:
-                    errorMsg += "除数为零";
-                    break;
-                case CalculatorError::OVERFLOW:
-                    errorMsg += "数据溢出";
-                    break;
-                case CalculatorError::INVALID_OPERATION:
-                    errorMsg += "无效操作";
-                    break;
-                default:
-                    errorMsg += "未知错误";
-                    break;
-            }
-            _display->updateResultDirect(errorMsg);
-            _display->refresh();
+    Serial.printf("[核心] updateDisplay 调用: 显示='%s', 表达式='%s', 状态=%d\n",
+                  _currentDisplay.c_str(), _expressionDisplay.c_str(), (int)_state);
+    
+    String displayText = _currentDisplay;
+    String errorMsg = "";
+    
+    // 处理错误显示
+    if (_lastError != CalculatorError::NONE) {
+        errorMsg = "错误: ";
+        switch (_lastError) {
+            case CalculatorError::DIVISION_BY_ZERO:
+                errorMsg += "除数为零";
+                break;
+            case CalculatorError::OVERFLOW:
+                errorMsg += "数据溢出";
+                break;
+            case CalculatorError::INVALID_OPERATION:
+                errorMsg += "无效操作";
+                break;
+            default:
+                errorMsg += "未知错误";
+                break;
         }
+        displayText = errorMsg;
+    }
+    
+    // 更新LVGL UI
+    if (_lvgl_ui) {
+        _lvgl_ui->updateExpressionDirect(_expressionDisplay);
+        _lvgl_ui->updateResultDirect(displayText);
+        _lvgl_ui->refresh();
     }
 }
 
+void CalculatorCore::initLVGLUI() {
+    if (!_lvgl_display) {
+        CALC_LOG_E("LVGL显示管理器未设置");
+        return;
+    }
+    
+    // 创建LVGL计算器UI
+    _lvgl_ui = std::unique_ptr<LVGLCalculatorUI>(new LVGLCalculatorUI(_lvgl_display));
+    if (!_lvgl_ui->begin()) {
+        CALC_LOG_E("LVGL计算器UI初始化失败");
+        _lvgl_ui.reset();
+        return;
+    }
+    
+    // 初始化显示内容
+    _lvgl_ui->setResult(_currentDisplay);
+    _lvgl_ui->setExpression(_expressionDisplay);
+    _lvgl_ui->refresh();
+    
+    CALC_LOG_I("LVGL计算器UI初始化完成");
+}
+
 void CalculatorCore::update() {
+    // 更新LVGL UI（如果存在）
+    if (_lvgl_ui) {
+        _lvgl_ui->update();
+    }
+    
     // 定期更新逻辑（如果需要）
     
     // 调试：确认update被调用（但不要频繁打印）
@@ -400,11 +431,18 @@ void CalculatorCore::addToHistory(const String& expression, double result) {
     
     _history.push_back(entry);
     
-    // 历史记录已保存在内部，显示器可以通过getHistory()获取
-    
     // 限制历史记录数量
     if (_history.size() > _maxHistorySize) {
         _history.erase(_history.begin());
+    }
+    
+    // 格式化历史记录行用于显示
+    String resultStr = NumberFormatter::format(result, 6);
+    String historyLine = expression + " = " + resultStr;
+    
+    // 更新LVGL UI
+    if (_lvgl_ui) {
+        _lvgl_ui->pushHistory(historyLine);
     }
     
     CALC_LOG_D("已添加到历史记录: %s = %.6f", expression.c_str(), result);
