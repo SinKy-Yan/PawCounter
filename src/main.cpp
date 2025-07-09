@@ -14,6 +14,7 @@
 #include "SleepManager.h"  // 新增：休眠管理器头文件
 #include "ConfigManager.h"  // 新增：配置管理器
 #include "SimpleHID.h"  // 简单HID功能
+#include "FontTester.h"  // 字体测试器
 
 // 已移除LVGL演示代码
 
@@ -31,6 +32,9 @@ std::shared_ptr<CalculatorCore> calculator;
 
 // HID系统组件
 std::unique_ptr<SimpleHID> simpleHID;
+
+// 字体测试器
+std::unique_ptr<FontTester> fontTester;
 
 
 // 函数声明
@@ -204,6 +208,18 @@ void setup() {
         // 将简单HID设置到按键控制器
         keypad.setSimpleHID(simpleHID.get());
         keypad.setHIDEnabled(true);  // 启用HID功能
+    }
+    
+    // 13. 初始化字体测试器
+    Serial.println("13. 初始化字体测试器...");
+    fontTester = std::unique_ptr<FontTester>(new FontTester(lvgl_display));
+    if (!fontTester->begin()) {
+        LOG_E(TAG_MAIN, "字体测试器初始化失败");
+        Serial.println("⚠️ 字体测试器初始化失败");
+        fontTester.reset();
+    } else {
+        LOG_I(TAG_MAIN, "字体测试器初始化完成");
+        Serial.println("✅ 字体测试器已启用");
     }
     
     Serial.println("=== 计算器系统启动完成 ===");
@@ -393,6 +409,9 @@ void handleSerialCommands() {
             Serial.println("  hid_status - 显示简单HID状态");
             Serial.println("  hid_test <key> - 测试HID按键发送");
             Serial.println("  hid_enable <on|off> - 启用/禁用HID功能");
+            Serial.println("  font_test - 进入字体测试模式");
+            Serial.println("  font_next - 切换到下一个字体");
+            Serial.println("  font_prev - 切换到上一个字体");
         } else if (cmd.equalsIgnoreCase("status")) {
             Serial.println("系统状态:");
             Serial.printf(" - 可用堆内存: %d 字节\n", ESP.getFreeHeap());
@@ -689,6 +708,30 @@ void handleSerialCommands() {
                 }
             } else {
                 Serial.println("HID功能未初始化");
+            }
+        }
+        else if (cmd.equalsIgnoreCase("font_test")) {
+            if (fontTester) {
+                fontTester->showFontTest();
+                Serial.println("✅ 进入字体测试模式");
+            } else {
+                Serial.println("❌ 字体测试器未初始化");
+            }
+        }
+        else if (cmd.equalsIgnoreCase("font_next")) {
+            if (fontTester) {
+                fontTester->showNextFont();
+                Serial.println("✅ 切换到下一个字体");
+            } else {
+                Serial.println("❌ 字体测试器未初始化");
+            }
+        }
+        else if (cmd.equalsIgnoreCase("font_prev")) {
+            if (fontTester) {
+                fontTester->showPreviousFont();
+                Serial.println("✅ 切换到上一个字体");
+            } else {
+                Serial.println("❌ 字体测试器未初始化");
             }
         }
         else {

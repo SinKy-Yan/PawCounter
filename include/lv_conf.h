@@ -24,6 +24,11 @@
 #define LV_FONT_MONTSERRAT_20 1
 #define LV_FONT_DEFAULT &lv_font_montserrat_16
 
+// Tiny TTF引擎配置
+#define LV_USE_TINY_TTF 1
+#define LV_TINY_TTF_FILE_SUPPORT 1
+#define LV_TINY_TTF_CACHE_GLYPH_CNT 256
+
 // 颜色配置
 #define LV_COLOR_DEPTH 16  // 16位颜色深度
 #define LV_COLOR_16_SWAP 0  // 不交换字节序
