@@ -2,15 +2,11 @@
 #include "Logger.h"
 #include <lvgl.h>
 
-#if LV_USE_TINY_TTF
-#include <extra/libs/tiny_ttf/lv_tiny_ttf.h>
-#endif
-
 #define TAG_FONT_TEST "FontTester"
 
-// 测试文本
-const char* FontTester::ASCII_TEXT = "Hello World! 123";
-const char* FontTester::CHINESE_TEXT = "你好世界！测试";
+// 测试文本 - 适配计算器应用场景
+const char* FontTester::ASCII_TEXT = "123+456=579";
+const char* FontTester::CHINESE_TEXT = "计算器字体测试";
 
 FontTester::FontTester(LVGLDisplay* display) 
     : _display(display), _screen(nullptr), _title_label(nullptr),
@@ -19,14 +15,7 @@ FontTester::FontTester(LVGLDisplay* display)
 }
 
 FontTester::~FontTester() {
-#if LV_USE_TINY_TTF
-    if (_chill_7px) {
-        lv_tiny_ttf_destroy(_chill_7px);
-    }
-    if (_chill_16px) {
-        lv_tiny_ttf_destroy(_chill_16px);
-    }
-#endif
+    // 编译后的字体文件不需要手动释放
 }
 
 bool FontTester::begin() {
@@ -34,23 +23,18 @@ bool FontTester::begin() {
         return false;
     }
     
-    loadTTFFonts();
+    loadFonts();
     createTestUI();
     
     return true;
 }
 
-void FontTester::loadTTFFonts() {
-    LOG_I(TAG_FONT_TEST, "加载TTF字体...");
+void FontTester::loadFonts() {
+    LOG_I(TAG_FONT_TEST, "加载生成的字体文件...");
     
-#if LV_USE_TINY_TTF && LV_TINY_TTF_FILE_SUPPORT
-    _chill_7px = lv_tiny_ttf_create_file("src/font/ChillBitmap_7px.ttf", 7);
-    _chill_16px = lv_tiny_ttf_create_file("src/font/ChillBitmap_16px.ttf", 16);
-#else
-    _chill_7px = nullptr;
-    _chill_16px = nullptr;
-    LOG_W(TAG_FONT_TEST, "Tiny TTF支持未启用");
-#endif
+    // 直接使用extern声明的字体
+    _chill_7px = &chill_bitmap_7px;
+    _chill_16px = &chill_bitmap_16px;
     
     LOG_I(TAG_FONT_TEST, "7px字体: %s", _chill_7px ? "成功" : "失败");
     LOG_I(TAG_FONT_TEST, "16px字体: %s", _chill_16px ? "成功" : "失败");
@@ -64,7 +48,7 @@ void FontTester::createTestUI() {
     _title_label = lv_label_create(_screen);
     lv_obj_set_pos(_title_label, 10, 5);
     lv_obj_set_style_text_color(_title_label, lv_color_hex(0x00FF00), LV_PART_MAIN);
-    lv_label_set_text(_title_label, "TTF Font Test");
+    lv_label_set_text(_title_label, "ChillBitmap Font Test");
     
     // ASCII测试
     _ascii_label = lv_label_create(_screen);
@@ -114,11 +98,11 @@ void FontTester::updateFontDisplay() {
             break;
         case 1:
             font = _chill_7px ? _chill_7px : LV_FONT_DEFAULT;
-            name = _chill_7px ? "ChillBitmap 7px" : "ChillBitmap 7px (Failed)";
+            name = _chill_7px ? "ChillBitmap 7px" : "ChillBitmap 7px (Error)";
             break;
         case 2:
             font = _chill_16px ? _chill_16px : LV_FONT_DEFAULT;
-            name = _chill_16px ? "ChillBitmap 16px" : "ChillBitmap 16px (Failed)";
+            name = _chill_16px ? "ChillBitmap 16px" : "ChillBitmap 16px (Error)";
             break;
     }
     

@@ -3,10 +3,11 @@
 #include <Arduino.h>
 #include <lvgl.h>
 #include "LVGLDisplay.h"
+#include "ChillBitmapFonts.h"
 
 /**
  * @brief 字体测试器
- * @details 直接加载和测试TTF字体
+ * @details 测试生成的LVGL字体文件
  */
 class FontTester {
 public:
@@ -28,12 +29,12 @@ private:
     
     int _current_font_index;
     
-    // TTF字体对象
-    lv_font_t* _chill_7px;
-    lv_font_t* _chill_16px;
+    // 生成的字体对象
+    const lv_font_t* _chill_7px;
+    const lv_font_t* _chill_16px;
     
     void createTestUI();
-    void loadTTFFonts();
+    void loadFonts();
     void updateFontDisplay();
     void setTestFont(const lv_font_t* font, const char* font_name);
     
