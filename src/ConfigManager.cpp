@@ -3,6 +3,21 @@
 // 单例实例
 ConfigManager* ConfigManager::_instance = nullptr;
 
+ConfigManager::ConfigManager() : _mutex(nullptr) {
+    // 创建互斥锁
+    _mutex = xSemaphoreCreateMutex();
+    if (!_mutex) {
+        LOG_E(TAG_CONFIG, "无法创建配置管理器互斥锁");
+    }
+}
+
+ConfigManager::~ConfigManager() {
+    if (_mutex) {
+        vSemaphoreDelete(_mutex);
+        _mutex = nullptr;
+    }
+}
+
 ConfigManager& ConfigManager::getInstance() {
     if (_instance == nullptr) {
         _instance = new ConfigManager();
@@ -35,8 +50,11 @@ bool ConfigManager::begin() {
 }
 
 bool ConfigManager::load() {
+    lock();
+    
     if (!_preferences.isKey(KEY_LED_BRIGHTNESS)) {
         LOG_I(TAG_CONFIG, "未找到保存的配置，使用默认配置");
+        unlock();
         return false;
     }
     
@@ -74,6 +92,7 @@ bool ConfigManager::load() {
     
     _dirty = false;
     LOG_I(TAG_CONFIG, "配置加载完成");
+    unlock();
     return true;
 }
 
@@ -83,6 +102,7 @@ bool ConfigManager::save() {
         return false;
     }
     
+    lock();
     LOG_I(TAG_CONFIG, "正在保存配置...");
     
     // 保存LED配置
@@ -116,22 +136,33 @@ bool ConfigManager::save() {
     _preferences.putUChar(KEY_LOG_LEVEL, _config.logLevel);
     
     _dirty = false;
+    _lastSaveTime = millis();
     LOG_I(TAG_CONFIG, "配置保存完成");
+    unlock();
     return true;
 }
 
 bool ConfigManager::saveIfDirty() {
-    if (_dirty && _config.autoSave) {
+    lock();
+    bool shouldSave = _dirty && _config.autoSave;
+    uint32_t timeSinceLastSave = millis() - _lastSaveTime;
+    unlock();
+    
+    if (shouldSave && timeSinceLastSave >= SAVE_INTERVAL_MS) {
         return save();
     }
     return true;
 }
 
 void ConfigManager::reset() {
+    lock();
     LOG_I(TAG_CONFIG, "重置配置为默认值");
     loadDefaults();
     _dirty = true;
-    if (_config.autoSave) {
+    bool autoSave = _config.autoSave;
+    unlock();
+    
+    if (autoSave) {
         save();
     }
 }
@@ -331,6 +362,7 @@ bool ConfigManager::clearAll() {
         return false;
     }
     
+    lock();
     LOG_I(TAG_CONFIG, "清除所有配置");
     bool result = _preferences.clear();
     if (result) {
@@ -339,5 +371,165 @@ bool ConfigManager::clearAll() {
     } else {
         LOG_E(TAG_CONFIG, "配置清除失败");
     }
+    unlock();
     return result;
 }
+
+// 线程安全方法实现
+void ConfigManager::lock() const {
+    if (_mutex) {
+        xSemaphoreTake(_mutex, portMAX_DELAY);
+    }
+}
+
+void ConfigManager::unlock() const {
+    if (_mutex) {
+        xSemaphoreGive(_mutex);
+    }
+}
+
+bool ConfigManager::tryLock(uint32_t timeoutMs) const {
+    if (_mutex) {
+        return xSemaphoreTake(_mutex, pdMS_TO_TICKS(timeoutMs)) == pdTRUE;
+    }
+    return false;
+}
+
+// 线程安全的配置访问方法模板特化
+template<>
+bool ConfigManager::getConfigValue<uint8_t>(const String& key, uint8_t& value) const {
+    if (!_initialized || !tryLock()) return false;
+    
+    bool result = false;
+    if (key == "globalBrightness") {
+        value = _config.globalBrightness;
+        result = true;
+    } else if (key == "buzzerMode") {
+        value = _config.buzzerMode;
+        result = true;
+    } else if (key == "buzzerVolume") {
+        value = _config.buzzerVolume;
+        result = true;
+    } else if (key == "backlightBrightness") {
+        value = _config.backlightBrightness;
+        result = true;
+    } else if (key == "logLevel") {
+        value = _config.logLevel;
+        result = true;
+    }
+    
+    unlock();
+    return result;
+}
+
+template<>
+bool ConfigManager::getConfigValue<uint16_t>(const String& key, uint16_t& value) const {
+    if (!_initialized || !tryLock()) return false;
+    
+    bool result = false;
+    if (key == "ledFadeDuration") {
+        value = _config.ledFadeDuration;
+        result = true;
+    } else if (key == "buzzerPressFreq") {
+        value = _config.buzzerPressFreq;
+        result = true;
+    } else if (key == "buzzerReleaseFreq") {
+        value = _config.buzzerReleaseFreq;
+        result = true;
+    } else if (key == "buzzerDuration") {
+        value = _config.buzzerDuration;
+        result = true;
+    } else if (key == "repeatDelay") {
+        value = _config.repeatDelay;
+        result = true;
+    } else if (key == "repeatRate") {
+        value = _config.repeatRate;
+        result = true;
+    } else if (key == "longPressDelay") {
+        value = _config.longPressDelay;
+        result = true;
+    }
+    
+    unlock();
+    return result;
+}
+
+template<>
+bool ConfigManager::getConfigValue<uint32_t>(const String& key, uint32_t& value) const {
+    if (!_initialized || !tryLock()) return false;
+    
+    bool result = false;
+    if (key == "sleepTimeout") {
+        value = _config.sleepTimeout;
+        result = true;
+    }
+    
+    unlock();
+    return result;
+}
+
+template<>
+bool ConfigManager::getConfigValue<bool>(const String& key, bool& value) const {
+    if (!_initialized || !tryLock()) return false;
+    
+    bool result = false;
+    if (key == "buzzerEnabled") {
+        value = _config.buzzerEnabled;
+        result = true;
+    } else if (key == "buzzerFollowKeypress") {
+        value = _config.buzzerFollowKeypress;
+        result = true;
+    } else if (key == "buzzerDualTone") {
+        value = _config.buzzerDualTone;
+        result = true;
+    } else if (key == "autoSave") {
+        value = _config.autoSave;
+        result = true;
+    } else if (key == "logEnabled") {
+        value = _config.logEnabled;
+        result = true;
+    }
+    
+    unlock();
+    return result;
+}
+
+template<>
+bool ConfigManager::setConfigValue<uint8_t>(const String& key, const uint8_t& value) {
+    if (!_initialized || !tryLock()) return false;
+    
+    bool result = false;
+    bool changed = false;
+    
+    if (key == "globalBrightness" && _config.globalBrightness != value) {
+        _config.globalBrightness = value;
+        changed = true;
+        result = true;
+    } else if (key == "buzzerMode" && _config.buzzerMode != value) {
+        _config.buzzerMode = value;
+        changed = true;
+        result = true;
+    } else if (key == "buzzerVolume" && _config.buzzerVolume != value) {
+        _config.buzzerVolume = value;
+        changed = true;
+        result = true;
+    } else if (key == "backlightBrightness" && _config.backlightBrightness != value) {
+        _config.backlightBrightness = value;
+        changed = true;
+        result = true;
+    } else if (key == "logLevel" && _config.logLevel != value) {
+        _config.logLevel = value;
+        changed = true;
+        result = true;
+    }
+    
+    if (changed) {
+        markDirty();
+        _lastSaveTime = millis();
+    }
+    
+    unlock();
+    return result;
+}
+
+// 为所有其他类型添加类似的模板特化实现...

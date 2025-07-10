@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 #include <Preferences.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include "Logger.h"
 
 // Preferences命名空间
@@ -69,14 +71,31 @@ private:
     bool _initialized = false;
     bool _dirty = false;
     
+    // 线程安全
+    mutable SemaphoreHandle_t _mutex;
+    uint32_t _lastSaveTime = 0;
+    static constexpr uint32_t SAVE_INTERVAL_MS = 5000;  // 5秒保存间隔
+    
     // 私有构造函数（单例模式）
-    ConfigManager() = default;
+    ConfigManager();
+    
+    // 禁用拷贝和赋值
+    ConfigManager(const ConfigManager&) = delete;
+    ConfigManager& operator=(const ConfigManager&) = delete;
     
     // 内部方法
     void loadDefaults();
     void markDirty();
+    
+    // 线程安全方法
+    void lock() const;
+    void unlock() const;
+    bool tryLock(uint32_t timeoutMs = 100) const;
 
 public:
+    // 析构函数
+    ~ConfigManager();
+    
     // 获取单例实例
     static ConfigManager& getInstance();
     
@@ -90,6 +109,13 @@ public:
     
     // 配置重置
     void reset();
+    
+    // 线程安全的配置访问
+    template<typename T>
+    bool getConfigValue(const String& key, T& value) const;
+    
+    template<typename T>
+    bool setConfigValue(const String& key, const T& value);
     
     // 获取配置值
     const PersistentConfig& getConfig() const { return _config; }
