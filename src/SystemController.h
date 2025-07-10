@@ -8,6 +8,11 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
+// 系统控制器相关常量
+#define MAX_ERROR_LOG_ENTRIES 10
+#define MAX_COMMAND_LENGTH 64
+#define COMMAND_TIMEOUT 100  // 命令读取超时时间（毫秒）
+
 // 前向声明
 class ConfigManager;
 class Logger;
@@ -88,9 +93,9 @@ public:
     
 private:
     // 组件管理
-    std::unique_ptr<ConfigManager> configManager;
-    std::unique_ptr<Logger> logger;
-    std::unique_ptr<SleepManager> sleepManager;
+    ConfigManager* configManager;  // ConfigManager是单例，不用unique_ptr管理
+    Logger* logger;  // Logger是单例，不用unique_ptr管理
+    SleepManager* sleepManager;  // SleepManager是单例，不用unique_ptr管理
     
     // 系统状态
     SystemState currentState;
@@ -143,6 +148,7 @@ private:
     void handleTestCommand(const String& args);
     void handleHIDCommand(const String& args);
     void handleFontCommand(const String& args);
+    void handleResetSerialCommand(const String& args);  // 新增串口重置命令处理函数
     
     // 系统监控方法
     void checkSystemHealth();
@@ -165,7 +171,6 @@ private:
     static constexpr uint32_t MEMORY_CLEANUP_INTERVAL = 30000;  // 30秒
     static constexpr uint32_t MIN_FREE_HEAP = 8192;         // 8KB
     static constexpr uint32_t MAX_ERROR_LOG_SIZE = 50;      // 最多50条错误日志
-    static constexpr uint32_t COMMAND_TIMEOUT = 100;       // 100ms
 };
 
 // 全局系统控制器实例访问

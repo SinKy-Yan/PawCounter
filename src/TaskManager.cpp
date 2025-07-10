@@ -3,8 +3,13 @@
 #include "CalculatorApplication.h"
 #include "Logger.h"
 #include "config.h"
+#include "BackLightControl.h"
 #include <esp_task_wdt.h>
 #include <esp_system.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/queue.h>
+#include <freertos/semphr.h>
 #include <memory>
 #include <lvgl.h>
 
@@ -77,7 +82,7 @@ void TaskManager::createTasks() {
     }
     
     // 创建任务间通信对象
-    keyEventQueue = xQueueCreate(KEY_EVENT_QUEUE_SIZE, sizeof(KeyEvent));
+    keyEventQueue = xQueueCreate(KEY_EVENT_QUEUE_SIZE, sizeof(TaskKeyEvent));
     displayUpdateQueue = xQueueCreate(DISPLAY_UPDATE_QUEUE_SIZE, sizeof(DisplayUpdate));
     configMutex = xSemaphoreCreateMutex();
     
@@ -148,9 +153,10 @@ void TaskManager::startScheduler() {
         return;
     }
     
-    LOG_I("TASK", "启动FreeRTOS调度器");
-    // 注意：vTaskStartScheduler() 不会返回
-    // 所有后续逻辑都在任务中执行
+    LOG_I("TASK", "FreeRTOS任务系统已启动");
+    // 注意：在Arduino ESP32框架中，FreeRTOS调度器已经由框架自动启动
+    // 不需要手动调用vTaskStartScheduler()，任务已经开始运行
+    LOG_I("TASK", "所有任务已在后台运行");
 }
 
 // 按键任务实现
@@ -240,7 +246,10 @@ void TaskManager::displayTask(void* parameter) {
             // 更新显示
             self->calculatorApp->updateDisplay();
             
-            // 处理LVGL定时器
+            // 更新背光控制（处理渐变效果）
+            BacklightControl::getInstance().update();
+            
+            // 处理LVGL定时器（时间源由LVGLDisplay管理）
             lv_timer_handler();
             
         } catch (const std::exception& e) {
@@ -339,6 +348,13 @@ void TaskManager::systemTask(void* parameter) {
 void TaskManager::monitorTaskPerformance() {
     LOG_D("TASK", "任务性能监控");
     
+    // 基本性能监控（不使用高级FreeRTOS函数）
+    LOG_D("TASK", "系统运行时间: %lu ms", millis());
+    LOG_D("TASK", "空闲堆内存: %u 字节", ESP.getFreeHeap());
+    LOG_D("TASK", "详细任务监控已禁用（需要configUSE_TRACE_FACILITY=1）");
+    
+    /*
+#if (configUSE_TRACE_FACILITY == 1)
     // 获取任务信息
     TaskStatus_t taskStatus;
     
@@ -371,6 +387,10 @@ void TaskManager::monitorTaskPerformance() {
               taskStatistics[2].lastCycleTime, taskStatistics[2].maxCycleTime,
               taskStatistics[2].avgCycleTime, taskStatus.usStackHighWaterMark);
     }
+#else
+    LOG_D("TASK", "详细任务监控需要启用 configUSE_TRACE_FACILITY");
+#endif
+    */
 }
 
 void TaskManager::checkSystemHealth() {
@@ -400,6 +420,14 @@ void TaskManager::checkSystemHealth() {
 }
 
 void TaskManager::checkTaskStackUsage() {
+    // 基本堆栈检查（不使用高级FreeRTOS函数）
+    LOG_D("TASK", "基本堆栈检查");
+    LOG_D("TASK", "空闲堆内存: %u 字节", ESP.getFreeHeap());
+    LOG_D("TASK", "最小空闲堆内存: %u 字节", ESP.getMinFreeHeap());
+    LOG_D("TASK", "详细堆栈监控已禁用（需要configUSE_TRACE_FACILITY=1）");
+    
+    /*
+#if (configUSE_TRACE_FACILITY == 1)
     TaskStatus_t taskStatus;
     
     // 检查按键任务
@@ -425,6 +453,10 @@ void TaskManager::checkTaskStackUsage() {
             LOG_W("TASK", "系统任务堆栈不足: %u words", taskStatus.usStackHighWaterMark);
         }
     }
+#else
+    LOG_D("TASK", "堆栈监控需要启用 configUSE_TRACE_FACILITY");
+#endif
+    */
 }
 
 void TaskManager::handleTaskError(TaskHandle_t taskHandle, const char* taskName) {

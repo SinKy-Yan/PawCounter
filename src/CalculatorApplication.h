@@ -8,11 +8,11 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include "TaskManager.h"  // 为了使用TaskKeyEvent和DisplayUpdate结构
+#include "KeypadControl.h"  // 为了使用KeyEventType枚举
 
 // 前向声明
 class CalculatorCore;
 class LVGLDisplay;
-class KeypadControl;
 class SimpleHID;
 class FontTester;
 class CalculationEngine;
@@ -101,17 +101,17 @@ public:
     
     // 组件访问接口
     CalculatorCore* getCalculatorCore() const { return calculatorCore.get(); }
-    LVGLDisplay* getLVGLDisplay() const { return lvglDisplay.get(); }
+    LVGLDisplay* getLVGLDisplay() const { return lvglDisplay; }
     KeypadControl* getKeypadControl() const { return keypadControl.get(); }
     
 private:
     // 核心组件
     std::unique_ptr<CalculatorCore> calculatorCore;
-    std::unique_ptr<LVGLDisplay> lvglDisplay;
+    LVGLDisplay* lvglDisplay;  // 不管理生命周期，只是引用全局对象
     std::unique_ptr<KeypadControl> keypadControl;
     std::unique_ptr<SimpleHID> simpleHID;
     std::unique_ptr<FontTester> fontTester;
-    std::unique_ptr<CalculationEngine> calculationEngine;
+    std::shared_ptr<CalculationEngine> calculationEngine;  // 修改为shared_ptr
     
     // 应用状态
     ApplicationState currentState;
@@ -148,6 +148,9 @@ private:
     std::vector<String> errorLog;
     uint32_t errorCount;
     
+    // 静态实例指针（用于静态回调函数）
+    static CalculatorApplication* _currentInstance;
+    
     // 内部方法
     void initializeComponents();
     void setupKeyMappings();
@@ -155,6 +158,8 @@ private:
     void setupDefaultBuzzerSettings();
     
     // 按键处理内部方法
+    void onKeypadEvent(KeyEventType type, uint8_t key, uint8_t* combo, uint8_t count);
+    static void staticKeyEventCallback(KeyEventType type, uint8_t key, uint8_t* combo, uint8_t count);
     void processKeyPress(uint8_t key);
     void processKeyRelease(uint8_t key);
     void processKeyLongPress(uint8_t key);

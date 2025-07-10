@@ -1,4 +1,7 @@
 #include "CalculatorApplication.h"
+
+// 静态实例指针定义
+CalculatorApplication* CalculatorApplication::_currentInstance = nullptr;
 #include "CalculatorCore.h"
 #include "LVGLDisplay.h"
 #include "KeypadControl.h"
@@ -9,11 +12,14 @@
 #include "config.h"
 #include <FastLED.h>
 #include <memory>
+#include "BacklightControl.h"
+#include "SleepManager.h"  // 添加SleepManager头文件
 
 CalculatorApplication::CalculatorApplication() :
     currentState(ApplicationState::INITIALIZING),
     previousState(ApplicationState::INITIALIZING),
     lastStateChangeTime(0),
+    lvglDisplay(nullptr),
     keyEventMutex(nullptr),
     displayMutex(nullptr),
     ledMutex(nullptr),
@@ -77,6 +83,10 @@ bool CalculatorApplication::initialize() {
         // 切换到计算器模式
         setState(ApplicationState::CALCULATOR_MODE);
         
+        // 强制触发显示更新，确保初始UI正确显示
+        displayNeedsUpdate = true;
+        updateDisplay();
+        
         LOG_I("APP", "计算器应用初始化完成");
         return true;
         
@@ -88,25 +98,46 @@ bool CalculatorApplication::initialize() {
 }
 
 void CalculatorApplication::initializeComponents() {
-    // 初始化计算引擎
-    calculationEngine.reset(new CalculationEngine());
-    if (!calculationEngine->begin()) {
+    // 初始化计算引擎（创建一个独立的shared_ptr实例）
+    auto engine = std::make_shared<CalculationEngine>();
+    if (!engine->begin()) {
         throw std::runtime_error("计算引擎初始化失败");
     }
     
-    // 初始化LVGL显示
-    // 注意：这里假设LVGL显示已经在main.cpp中初始化
-    // lvglDisplay = 在TaskManager中从全局变量获取
+    // 获取LVGL显示对象的引用（不管理生命周期）
+    // 从全局变量获取LVGL显示对象
+    extern LVGLDisplay* lvgl_display;
+    lvglDisplay = lvgl_display;
+    if (!lvglDisplay) {
+        LOG_W("APP", "LVGL显示对象未初始化，显示功能可能受限");
+    }
     
     // 初始化按键控制
     keypadControl.reset(new KeypadControl());
     keypadControl->begin();  // KeypadControl::begin() 返回void
+    
+    // 设置按键事件回调函数（使用静态方法）
+    keypadControl->setKeyEventCallback(CalculatorApplication::staticKeyEventCallback);
+    _currentInstance = this;  // 设置当前实例指针供静态回调使用
+    LOG_I("APP", "按键事件回调已设置");
     
     // 初始化计算器核心
     calculatorCore.reset(new CalculatorCore());
     if (!calculatorCore->begin()) {
         throw std::runtime_error("计算器核心初始化失败");
     }
+    
+    // 设置LVGL显示对象到计算器核心
+    if (lvglDisplay) {
+        calculatorCore->setLVGLDisplay(lvglDisplay);
+    }
+    
+    // 设置计算引擎到计算器核心
+    LOG_I("APP", "将计算引擎设置到计算器核心");
+    calculatorCore->setCalculationEngine(engine);
+    
+    // 最后，将计算引擎赋值给成员变量
+    calculationEngine = engine;
     
     // 初始化简单HID（可选）
     try {
@@ -141,85 +172,13 @@ void CalculatorApplication::initializeComponents() {
 }
 
 void CalculatorApplication::setupKeyMappings() {
-    // 数字键映射 (1-9, 0)
-    for (uint8_t i = 1; i <= 9; i++) {
-        KeyMapping mapping = {
-            .physicalKey = i,
-            .logicalKey = i,
-            .keyName = String(i),
-            .action = [this, i]() { handleNumberInput(i); }
-        };
-        keyMappings.push_back(mapping);
-    }
+    // 旧的按键映射系统已移除，现在统一使用KeyboardConfig系统
+    // 这避免了双重映射系统的冲突问题
     
-    // 数字键0的特殊映射
-    KeyMapping zeroMapping = {
-        .physicalKey = 10,  // 假设物理按键10是数字0
-        .logicalKey = 0,
-        .keyName = "0",
-        .action = [this]() { handleNumberInput(0); }
-    };
-    keyMappings.push_back(zeroMapping);
+    // 清空旧映射（如果有的话）
+    keyMappings.clear();
     
-    // 运算符键映射
-    KeyMapping addMapping = {
-        .physicalKey = 11,  // 假设物理按键11是加号
-        .logicalKey = 11,
-        .keyName = "+",
-        .action = [this]() { handleOperatorInput('+'); }
-    };
-    keyMappings.push_back(addMapping);
-    
-    KeyMapping subMapping = {
-        .physicalKey = 12,  // 假设物理按键12是减号
-        .logicalKey = 12,
-        .keyName = "-",
-        .action = [this]() { handleOperatorInput('-'); }
-    };
-    keyMappings.push_back(subMapping);
-    
-    KeyMapping mulMapping = {
-        .physicalKey = 13,  // 假设物理按键13是乘号
-        .logicalKey = 13,
-        .keyName = "*",
-        .action = [this]() { handleOperatorInput('*'); }
-    };
-    keyMappings.push_back(mulMapping);
-    
-    KeyMapping divMapping = {
-        .physicalKey = 14,  // 假设物理按键14是除号
-        .logicalKey = 14,
-        .keyName = "/",
-        .action = [this]() { handleOperatorInput('/'); }
-    };
-    keyMappings.push_back(divMapping);
-    
-    // 功能键映射
-    KeyMapping equalsMapping = {
-        .physicalKey = 15,  // 假设物理按键15是等号
-        .logicalKey = 15,
-        .keyName = "=",
-        .action = [this]() { executeCalculation(); }
-    };
-    keyMappings.push_back(equalsMapping);
-    
-    KeyMapping clearMapping = {
-        .physicalKey = 16,  // 假设物理按键16是清除
-        .logicalKey = 16,
-        .keyName = "C",
-        .action = [this]() { clearCalculator(); }
-    };
-    keyMappings.push_back(clearMapping);
-    
-    KeyMapping dotMapping = {
-        .physicalKey = 17,  // 假设物理按键17是小数点
-        .logicalKey = 17,
-        .keyName = ".",
-        .action = [this]() { handleSpecialInput("."); }
-    };
-    keyMappings.push_back(dotMapping);
-    
-    LOG_I("APP", "按键映射设置完成，共 %zu 个映射", keyMappings.size());
+    LOG_I("APP", "按键映射设置完成，使用KeyboardConfig统一管理");
 }
 
 void CalculatorApplication::setupDefaultLEDEffects() {
@@ -283,6 +242,9 @@ bool CalculatorApplication::getKeyEvent(TaskKeyEvent* event) {
 }
 
 void CalculatorApplication::handleKeyEvent(const TaskKeyEvent& event) {
+    // 确保按键事件能唤醒系统
+    SleepManager::instance().feed();
+    
     // 根据事件类型处理按键
     switch (event.type) {
         case TaskKeyEventType::PRESS:
@@ -320,22 +282,18 @@ void CalculatorApplication::processKeyPress(uint8_t key) {
     uint32_t color = CRGB::White;  // 默认白色
     triggerLEDEffect(key - 1, color, 200, 100);  // key-1因为LED索引从0开始
     
-    // 触发蜂鸣器效果
-    uint16_t frequency = 2000;  // 默认频率
-    // TODO: 实现钢琴模式频率计算
-    triggerBuzzer(frequency, 100);
+    // 移除重复的蜂鸣器触发代码，因为KeypadControl已经处理了蜂鸣器反馈
+    // 原代码：
+    // uint16_t frequency = 2000;  // 默认频率
+    // triggerBuzzer(frequency, 100);
     
-    // 查找并执行按键映射
-    for (const auto& mapping : keyMappings) {
-        if (mapping.physicalKey == key) {
-            try {
-                if (mapping.action) {
-                    mapping.action();
-                }
-            } catch (const std::exception& e) {
-                handleApplicationError(String("按键处理错误: ") + e.what());
-            }
-            break;
+    // 直接使用新的KeyboardConfig系统处理按键
+    // 移除旧的映射系统，避免冲突
+    if (calculatorCore) {
+        try {
+            calculatorCore->handleKeyInput(key, false);
+        } catch (const std::exception& e) {
+            handleApplicationError(String("按键处理错误: ") + e.what());
         }
     }
     
@@ -370,16 +328,43 @@ void CalculatorApplication::processKeyLongPress(uint8_t key) {
             break;
             
         default:
-            // 其他键的长按当作普通按下处理
-            processKeyPress(key);
+            // 其他键的长按处理（不调用processKeyPress以避免重复蜂鸣）
+            if (calculatorCore) {
+                try {
+                    calculatorCore->handleKeyInput(key, true); // 传递true表示长按
+                } catch (const std::exception& e) {
+                    handleApplicationError(String("长按处理错误: ") + e.what());
+                }
+            }
+            
+            // 触发LED效果（但不触发蜂鸣器）
+            uint32_t color = CRGB::White;
+            triggerLEDEffect(key - 1, color, 300, 150);  // 长按LED效果时间略长
+            
+            // 标记显示需要更新
+            displayNeedsUpdate = true;
             break;
     }
 }
 
 void CalculatorApplication::processKeyRepeat(uint8_t key) {
     LOG_D("APP", "处理按键重复: %d", key);
-    // 重复事件通常当作普通按下处理
-    processKeyPress(key);
+    
+    // 重复事件处理（不调用processKeyPress以避免重复蜂鸣）
+    if (calculatorCore) {
+        try {
+            calculatorCore->handleKeyInput(key, false);
+        } catch (const std::exception& e) {
+            handleApplicationError(String("重复按键处理错误: ") + e.what());
+        }
+    }
+    
+    // 触发LED效果（但不触发蜂鸣器）
+    uint32_t color = CRGB::White;  // 默认白色
+    triggerLEDEffect(key - 1, color, 100, 50);  // 重复按键LED效果时间略短
+    
+    // 标记显示需要更新
+    displayNeedsUpdate = true;
 }
 
 void CalculatorApplication::processKeyCombo(uint8_t* keys, uint8_t count) {
@@ -394,6 +379,66 @@ void CalculatorApplication::processKeyCombo(uint8_t* keys, uint8_t count) {
             ESP.restart();
         }
     }
+}
+
+void CalculatorApplication::staticKeyEventCallback(KeyEventType type, uint8_t key, uint8_t* combo, uint8_t count) {
+    if (_currentInstance) {
+        _currentInstance->onKeypadEvent(type, key, combo, count);
+    }
+}
+
+void CalculatorApplication::onKeypadEvent(KeyEventType type, uint8_t key, uint8_t* combo, uint8_t count) {
+    LOG_D("APP", "按键事件回调: type=%d, key=%d, count=%d", static_cast<int>(type), key, count);
+    
+    // 创建TaskKeyEvent事件
+    TaskKeyEvent event;
+    event.key = key;
+    event.timestamp = millis();
+    event.comboCount = (count > 5) ? 5 : count;  // 限制组合键数量不超过5个
+    
+    // 转换KeyEventType到TaskKeyEventType
+    switch (type) {
+        case KEY_EVENT_PRESS:
+            event.type = TaskKeyEventType::PRESS;
+            break;
+        case KEY_EVENT_RELEASE:
+            event.type = TaskKeyEventType::RELEASE;
+            break;
+        case KEY_EVENT_LONGPRESS:
+            event.type = TaskKeyEventType::LONGPRESS;
+            break;
+        case KEY_EVENT_REPEAT:
+            event.type = TaskKeyEventType::REPEAT;
+            break;
+        case KEY_EVENT_COMBO:
+            event.type = TaskKeyEventType::COMBO;
+            // 复制组合键数据
+            if (combo && count > 0) {
+                for (uint8_t i = 0; i < event.comboCount; i++) {
+                    event.combo[i] = combo[i];
+                }
+            }
+            break;
+        default:
+            LOG_W("APP", "未知的按键事件类型: %d", static_cast<int>(type));
+            return;
+    }
+    
+    // 将事件添加到队列中
+    lockKeyEvents();
+    
+    // 检查队列是否已满
+    if (keyEventQueue.size() >= MAX_KEY_EVENTS) {
+        LOG_W("APP", "按键事件队列已满，丢弃旧事件");
+        keyEventQueue.pop();  // 移除最旧的事件
+    }
+    
+    // 添加新事件到队列
+    keyEventQueue.push(event);
+    
+    unlockKeyEvents();
+    
+    LOG_D("APP", "按键事件已添加到队列，队列大小: %zu", keyEventQueue.size());
 }
 
 void CalculatorApplication::updateDisplay() {
@@ -454,6 +499,7 @@ void CalculatorApplication::updateSettingsDisplay() {
     // TODO: 实现设置界面的显示更新
     if (lvglDisplay) {
         // 显示设置界面
+        lvglDisplay->tick();
     }
 }
 
@@ -461,6 +507,7 @@ void CalculatorApplication::updateErrorDisplay() {
     // TODO: 实现错误界面的显示更新
     if (lvglDisplay) {
         // 显示错误信息
+        lvglDisplay->tick();
     }
 }
 
@@ -624,7 +671,7 @@ void CalculatorApplication::startBuzzerTone(uint16_t frequency) {
 
 void CalculatorApplication::stopBuzzerTone() {
     if (keypadControl) {
-        keypadControl->stopBuzzer();
+        keypadControl->stopBuzzer();  // 直接调用停止蜂鸣器方法
     }
 }
 
@@ -903,5 +950,58 @@ namespace ApplicationUtils {
     
     float easeOut(float t) {
         return t * (2 - t);
+    }
+}
+
+void CalculatorApplication::handleSpecialInput(const String& special) {
+    LOG_D("APP", "特殊输入: %s", special.c_str());
+    
+    if (calculatorCore) {
+        if (special == ".") {
+            // 处理小数点输入，调用handleKeyInput或相应方法
+            calculatorCore->handleKeyInput(21); // 假设21是小数点键
+        } else if (special == "=") {
+            // 处理等号，触发计算
+            calculatorCore->handleKeyInput(22); // 假设22是等号键
+        } else if (special == "C") {
+            calculatorCore->clearAll();
+        } else if (special == "CE") {
+            calculatorCore->clearEntry();
+        } else if (special == "+/-") {
+            // 处理正负号切换
+            calculatorCore->handleKeyInput(20); // 假设20是正负号键
+        }
+        // 更新显示
+        calculatorCore->updateDisplay();
+    }
+}
+
+void CalculatorApplication::handleDisplayUpdate(const DisplayUpdate& update) {
+    LOG_D("APP", "显示更新: 类型=%d", static_cast<int>(update.type));
+    
+    if (!lvglDisplay) return;
+    
+    switch (update.type) {
+        case DisplayUpdate::EXPRESSION_UPDATE:
+            // 更新表达式显示（具体实现取决于LVGLDisplay的接口）
+            LOG_D("APP", "更新表达式: %s", update.data.c_str());
+            break;
+        case DisplayUpdate::RESULT_UPDATE:
+            // 更新结果显示
+            LOG_D("APP", "更新结果: %s", update.data.c_str());
+            break;
+        case DisplayUpdate::HISTORY_UPDATE:
+            // 更新历史记录显示
+            LOG_D("APP", "更新历史: %s", update.data.c_str());
+            break;
+        case DisplayUpdate::FULL_REFRESH:
+            // 全屏刷新
+            LOG_D("APP", "全屏刷新");
+            break;
+    }
+    
+    if (update.forceUpdate) {
+        LOG_D("APP", "强制重绘");
+        // 强制重绘（具体实现取决于LVGLDisplay的接口）
     }
 }

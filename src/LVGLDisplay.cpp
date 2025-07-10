@@ -71,8 +71,17 @@ bool LVGLDisplay::begin() {
 }
 
 void LVGLDisplay::tick() {
-    // 提供时间源给LVGL
-    lv_tick_inc(1);
+    // 提供适当的时间源给LVGL（基于实际经过的时间）
+    static uint32_t lastTick = 0;
+    uint32_t currentTick = millis();
+    
+    if (lastTick > 0) {
+        uint32_t elapsed = currentTick - lastTick;
+        if (elapsed > 0) {
+            lv_tick_inc(elapsed);
+        }
+    }
+    lastTick = currentTick;
     
     // 处理LVGL任务
     lv_timer_handler();

@@ -22,7 +22,7 @@ class CalculatorApplication;
 // 任务堆栈大小
 #define STACK_SIZE_KEYPAD        4096
 #define STACK_SIZE_DISPLAY       4096
-#define STACK_SIZE_SYSTEM        2048
+#define STACK_SIZE_SYSTEM        6144
 
 // 队列大小
 #define KEY_EVENT_QUEUE_SIZE     10

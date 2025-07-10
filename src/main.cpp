@@ -54,7 +54,7 @@ void setup() {
     
     // 显示系统信息
     Serial.println("\n=== 系统信息 ===");
-    Serial.printf("CPU频率: %u MHz\n", ESP.getCpuFreqMhz());
+    Serial.printf("CPU频率: %u MHz\n", ESP.getCpuFreqMHz());
     Serial.printf("堆内存: %u 字节\n", ESP.getFreeHeap());
     Serial.printf("PSRAM: %u 字节\n", ESP.getFreePsram());
     Serial.println("================");
@@ -68,19 +68,18 @@ void setup() {
     Serial.println("\n系统就绪，发送串口命令进行控制");
     Serial.println("输入 'help' 查看可用命令");
     
-    // 启动FreeRTOS调度器
-    // 注意：vTaskStartScheduler()不会返回，所有后续逻辑在任务中执行
+    // 启动FreeRTOS任务系统
+    // 在Arduino ESP32框架中，调度器已经运行，只需要确认任务创建成功
     taskManager.startScheduler();
 }
 
 void loop() {
-    // FreeRTOS接管后，loop()不会被调用
-    // 所有逻辑都在任务中执行
+    // 在Arduino ESP32框架中，loop()仍然会被调用
+    // 但主要逻辑已经在FreeRTOS任务中运行
     
-    // 如果到达这里，说明调度器启动失败
-    Serial.println("❌ FreeRTOS调度器启动失败");
-    delay(5000);
-    ESP.restart();
+    // 保持loop()为空，让FreeRTOS任务处理所有逻辑
+    // 这样可以确保任务优先级正确工作
+    vTaskDelay(pdMS_TO_TICKS(1000));  // 让其他任务运行
 }
 
 void handleSystemInit() {
@@ -95,15 +94,17 @@ void handleSystemInit() {
     // 3. 初始化背光控制
     Serial.println("3. 初始化背光控制...");
     BacklightControl::getInstance().begin();
+    delay(100);  // 确保背光控制器初始化完成
     BacklightControl::getInstance().setBacklight(100, 1000);  // 启动时100%亮度
+    Serial.println("  - 背光已设置为100%");
     
     Serial.println("✅ 硬件初始化完成");
 }
 
 void initLVGLDisplay() {
-    // 背光控制 - 确保在屏幕初始化后再开启
+    // 背光控制 - 初始化但不立即开启
     pinMode(LCD_BL, OUTPUT);
-    digitalWrite(LCD_BL, LOW); // 先关闭背光
+    digitalWrite(LCD_BL, LOW); // 先关闭背光，等待BacklightControl接管
     
     Serial.println("  - 初始化SPI总线和显示驱动...");
     
@@ -138,6 +139,16 @@ void initLVGLDisplay() {
         Serial.println("❌ LVGL显示系统初始化失败！");
         return;
     }
+    
+    // 创建测试显示内容
+    lv_obj_t* label = lv_label_create(lv_scr_act());
+    lv_label_set_text(label, "PawCounter\nFreeRTOS v2.0\nSystem Ready");
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(label, lv_color_white(), 0);
+    lv_obj_center(label);
+    
+    // 强制刷新显示
+    lv_refr_now(lv_disp_get_default());
     
     Serial.println("✅ LVGL显示系统初始化完成");
 }

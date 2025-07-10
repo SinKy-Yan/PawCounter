@@ -152,6 +152,12 @@ public:
     const LoggerConfig& getConfig() const { return _config; }
 
     /**
+     * @brief 获取当前日志级别
+     * @return log_level_t 当前日志级别
+     */
+    log_level_t getLevel() const { return _config.level; }
+
+    /**
      * @brief 启用/禁用彩色输出
      * @param enable true启用，false禁用
      */

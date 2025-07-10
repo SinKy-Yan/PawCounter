@@ -167,8 +167,14 @@ void LVGLCalculatorUI::refresh() {
     updateHistoryDisplay();
     setExpression(_current_expr);
     setResult(_current_result);
+    
+    // 强制LVGL刷新
+    if (_screen) {
+        lv_obj_invalidate(_screen);
+    }
 }
 
 void LVGLCalculatorUI::update() {
-    // 定期更新，目前无需特殊处理
+    // 强制刷新所有显示内容
+    refresh();
 }

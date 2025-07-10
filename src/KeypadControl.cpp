@@ -24,6 +24,7 @@
 #include "KeypadControl.h"
 #include "SimpleHID.h"
 #include "Logger.h"
+#include "SleepManager.h"  // 添加SleepManager的头文件引用
 
 // 按键位置映射表定义
 const uint8_t KeypadControl::KEY_POSITIONS[] = {
@@ -206,9 +207,9 @@ void KeypadControl::checkKeyStates(uint32_t buttonState) {
                 _keyStates[i].pressTime = millis();
                 _keyStates[i].longPressed = false;
                 _pressedKeys[_pressedKeyCount++] = i + 1;
-                handleKeyEvent(KEY_EVENT_PRESS, i + 1);
+                handleKeyEvent(KEY_EVENT_PRESS, i + 1, true);
             } else {
-                handleKeyEvent(KEY_EVENT_RELEASE, i + 1);
+                handleKeyEvent(KEY_EVENT_RELEASE, i + 1, true);
             }
         } else if (isPressed) {
             // 只有在状态没有变化但仍处于按下状态时，才添加到当前按下键列表
@@ -228,7 +229,7 @@ void KeypadControl::updateKeyStates() {
             if (!_keyStates[i].longPressed && 
                 (currentTime - _keyStates[i].pressTime >= _longPressDelay)) {
                 _keyStates[i].longPressed = true;
-                handleKeyEvent(KEY_EVENT_LONGPRESS, i + 1);
+                handleKeyEvent(KEY_EVENT_LONGPRESS, i + 1, true);
             }
         }
     }
@@ -256,7 +257,7 @@ void KeypadControl::updateAutoRepeat() {
             if (pressedTime >= _repeatDelay) {
                 uint32_t timeSinceLastRepeat = currentTime - _keyStates[i].lastRepeat;
                 if (_keyStates[i].lastRepeat == 0 || timeSinceLastRepeat >= _repeatRate) {
-                    handleKeyEvent(KEY_EVENT_REPEAT, i + 1);
+                    handleKeyEvent(KEY_EVENT_REPEAT, i + 1, true);
                     _keyStates[i].lastRepeat = currentTime;
                 }
             }
@@ -264,7 +265,7 @@ void KeypadControl::updateAutoRepeat() {
     }
 }
 
-void KeypadControl::handleKeyEvent(KeyEventType type, uint8_t key) {
+void KeypadControl::handleKeyEvent(KeyEventType type, uint8_t key, bool triggerBuzzer) {
     // 使用日志系统输出按键事件
     switch (type) {
         case KEY_EVENT_PRESS:
@@ -286,6 +287,9 @@ void KeypadControl::handleKeyEvent(KeyEventType type, uint8_t key) {
             KEYPAD_LOG_W("按键 %d 未知事件", key);
             break;
     }
+    
+    // 喂狗：重置休眠计时器并在休眠状态下唤醒系统
+    SleepManager::instance().feed();
     
     // 并行处理：同时触发计算器功能和HID功能
     
@@ -315,8 +319,8 @@ void KeypadControl::handleKeyEvent(KeyEventType type, uint8_t key) {
         }
     }
     
-    // 蜂鸣器反馈
-    if (_buzzerConfig.followKeypress) {
+    // 蜂鸣器反馈 - 只有当triggerBuzzer为true时才触发
+    if (triggerBuzzer && _buzzerConfig.followKeypress) {
         uint16_t freq = _buzzerConfig.pressFreq;  // 默认频率
         
         // 根据蜂鸣器模式选择频率
@@ -393,6 +397,15 @@ void KeypadControl::startBuzzer(uint16_t freq, uint16_t duration) {
     _buzzerEndTime = millis() + duration;
     
     KEYPAD_LOG_D("蜂鸣器启动: 频率=%d Hz, 持续时间=%d ms, 占空比=%d", freq, duration, duty);
+}
+
+void KeypadControl::stopBuzzer() {
+    if (_buzzerActive) {
+        // 立即停止蜂鸣器
+        ledcWrite(BUZZER_CHANNEL, 0);
+        _buzzerActive = false;
+        KEYPAD_LOG_D("蜂鸣器强制停止");
+    }
 }
 
 void KeypadControl::updateBuzzer() {

@@ -92,8 +92,21 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
         }
     }
     
+    // 检查按键是否启用
+    if (!keyConfig->isEnabled) {
+        CALC_LOG_W("按键 %d 已禁用", keyPosition);
+        return false;
+    }
+    
     CALC_LOG_V("按键映射到: %s (类型: %d, 层级: %d)", 
                keyConfig->symbol.c_str(), (int)keyConfig->type, (int)keyboardConfig.getCurrentLayer());
+    
+    // 特别调试按键22
+    if (keyPosition == 22) {
+        Serial.printf("[CALC] 按键22调试: 类型=%d, 操作=%d, 符号='%s', 标签='%s'\n",
+                      (int)keyConfig->type, (int)keyConfig->operation, 
+                      keyConfig->symbol.c_str(), keyConfig->label.c_str());
+    }
     
     // 清除错误状态
     if (_lastError != CalculatorError::NONE) {
@@ -118,10 +131,12 @@ bool CalculatorCore::handleKeyInput(uint8_t keyPosition, bool isLongPress) {
             break;
             
         case KeyType::OPERATOR:
+            CALC_LOG_D("处理运算符按键: 位置=%d, 操作=%d", keyPosition, (int)keyConfig->operation);
             handleOperatorInput(keyConfig->operation);
             break;
             
         case KeyType::FUNCTION:
+            Serial.printf("[CALC] 调用handleFunctionInput: 位置=%d, 操作=%d\n", keyPosition, (int)keyConfig->operation);
             handleFunctionInput(keyConfig);
             break;
             
@@ -221,6 +236,17 @@ void CalculatorCore::updateDisplay() {
         _lvgl_ui->updateExpressionDirect(_expressionDisplay);
         _lvgl_ui->updateResultDirect(displayText);
         _lvgl_ui->refresh();
+        
+        // 确保LVGL处理器能够更新显示
+        if (_lvgl_display) {
+            _lvgl_display->tick();
+        }
+    } else {
+        // 如果UI对象不存在，尝试重新初始化
+        if (_lvgl_display) {
+            CALC_LOG_D("LVGL UI对象不存在，尝试重新初始化");
+            initLVGLUI();
+        }
     }
 }
 
@@ -229,6 +255,8 @@ void CalculatorCore::initLVGLUI() {
         CALC_LOG_E("LVGL显示管理器未设置");
         return;
     }
+    
+    CALC_LOG_I("开始初始化LVGL计算器UI");
     
     // 创建LVGL计算器UI
     _lvgl_ui = std::unique_ptr<LVGLCalculatorUI>(new LVGLCalculatorUI(_lvgl_display));
@@ -243,23 +271,28 @@ void CalculatorCore::initLVGLUI() {
     _lvgl_ui->setExpression(_expressionDisplay);
     _lvgl_ui->refresh();
     
-    CALC_LOG_I("LVGL计算器UI初始化完成");
+    CALC_LOG_I("LVGL计算器UI初始化完成，当前显示='%s'", _currentDisplay.c_str());
 }
 
 void CalculatorCore::update() {
     // 更新LVGL UI（如果存在）
     if (_lvgl_ui) {
         _lvgl_ui->update();
+        // 强制刷新显示
+        _lvgl_ui->refresh();
     }
     
-    // 定期更新逻辑（如果需要）
+    // 确保LVGL处理器能够更新显示
+    if (_lvgl_display) {
+        _lvgl_display->tick();
+    }
     
     // 调试：确认update被调用（但不要频繁打印）
     static unsigned long lastDebugPrint = 0;
     if (millis() - lastDebugPrint > 5000) { // 每5秒打印一次
         lastDebugPrint = millis();
-        Serial.printf("[Core] update() called, display='%s', state=%d\n",
-                      _currentDisplay.c_str(), (int)_state);
+        Serial.printf("[Core] update() called, display='%s', state=%d, ui=%p\n",
+                      _currentDisplay.c_str(), (int)_state, _lvgl_ui.get());
     }
 }
 
@@ -269,22 +302,28 @@ void CalculatorCore::update() {
 void CalculatorCore::handleDigitInput(char digit) {
     CALC_LOG_D("数字输入: '%c', 当前状态=%d, 缓冲区='%s'", digit, (int)_state, _inputBuffer.c_str());
     
+    // 记录原始的pendingOperator，确保它不会在状态切换中丢失
+    Operator originalPendingOperator = _pendingOperator;
+    
     if (_state == CalculatorState::DISPLAY_RESULT) {
         // 如果当前显示结果，输入数字开始全新计算
         _inputBuffer = "";
         _expressionDisplay = "";  // 清空表达式
         _state = CalculatorState::INPUT_NUMBER;
         _hasDecimalPoint = false;
-        _pendingOperator = Operator::NONE;
+        _pendingOperator = Operator::NONE; // 在这种情况下才重置运算符
         _previousNumber = 0.0;
         _waitingForOperand = false;
         
         CALC_LOG_D("结果显示后开始新计算");
     } else if (_state == CalculatorState::INPUT_OPERATOR) {
-        // 如果刚输入运算符，输入数字开始新输入
+        // 如果刚输入运算符，输入数字开始新输入，但保留_pendingOperator
         _inputBuffer = "";
         _state = CalculatorState::INPUT_NUMBER;
         _hasDecimalPoint = false;
+        // 不重置_pendingOperator
+        
+        CALC_LOG_D("从运算符状态切换到数字输入状态，保留运算符: %d", (int)_pendingOperator);
     }
     
     if (digit == '.') {
@@ -311,11 +350,23 @@ void CalculatorCore::handleDigitInput(char digit) {
     _currentDisplay = _inputBuffer;
     _currentNumber = _inputBuffer.toDouble();
     
-    CALC_LOG_D("数字输入后: 缓冲区='%s', 数字=%.6f", _inputBuffer.c_str(), _currentNumber);
+    // 确保_pendingOperator在INPUT_OPERATOR状态切换后不会丢失
+    if (_state == CalculatorState::INPUT_NUMBER && originalPendingOperator != Operator::NONE && 
+        _pendingOperator == Operator::NONE) {
+        _pendingOperator = originalPendingOperator;
+        CALC_LOG_D("恢复运算符: %d", (int)_pendingOperator);
+    }
+    
+    CALC_LOG_D("数字输入后: 缓冲区='%s', 数字=%.6f, 运算符=%d", 
+               _inputBuffer.c_str(), _currentNumber, (int)_pendingOperator);
 }
 
 void CalculatorCore::handleOperatorInput(Operator op) {
-    CALC_LOG_V("运算符输入: %d", (int)op);
+    CALC_LOG_D("运算符输入: %d (%s)", (int)op, 
+               op == Operator::ADD ? "ADD" :
+               op == Operator::SUBTRACT ? "SUBTRACT" :
+               op == Operator::MULTIPLY ? "MULTIPLY" :
+               op == Operator::DIVIDE ? "DIVIDE" : "UNKNOWN");
     
     String opSymbol = "";
     switch(op) {
@@ -323,7 +374,10 @@ void CalculatorCore::handleOperatorInput(Operator op) {
         case Operator::SUBTRACT: opSymbol = "-"; break;
         case Operator::MULTIPLY: opSymbol = "*"; break;
         case Operator::DIVIDE: opSymbol = "/"; break;
-        default: opSymbol = "?"; break;
+        default: 
+            opSymbol = "?"; 
+            CALC_LOG_W("未知运算符: %d", (int)op);
+            break;
     }
     
     if (_state == CalculatorState::DISPLAY_RESULT) {
@@ -387,7 +441,49 @@ void CalculatorCore::handleOperatorInput(Operator op) {
 // 旧的handleFunctionInput(KeyMapping*)方法已被移除，使用新的handleFunctionInput(KeyConfig*)
 
 bool CalculatorCore::performCalculation() {
+    // 增加调试日志
+    CALC_LOG_D("执行计算开始: _pendingOperator=%d, _previousNumber=%.6f, _currentNumber=%.6f, 表达式='%s'",
+               (int)_pendingOperator, _previousNumber, _currentNumber, _expressionDisplay.c_str());
+    
+    // 当_pendingOperator为NONE时，尝试从表达式中提取运算符和操作数
+    if (_pendingOperator == Operator::NONE && !_expressionDisplay.isEmpty()) {
+        // 尝试从表达式中提取运算符和操作数
+        String numStr = "";
+        Operator extractedOp = Operator::NONE;
+        
+        for (size_t i = 0; i < _expressionDisplay.length(); i++) {
+            char c = _expressionDisplay.charAt(i);
+            if (c == '+') {
+                extractedOp = Operator::ADD;
+                break;
+            } else if (c == '-') {
+                extractedOp = Operator::SUBTRACT;
+                break;
+            } else if (c == '*') {
+                extractedOp = Operator::MULTIPLY;
+                break;
+            } else if (c == '/') {
+                extractedOp = Operator::DIVIDE;
+                break;
+            } else if (c != ' ') { // 忽略空格
+                numStr += c;
+            }
+        }
+        
+        if (extractedOp != Operator::NONE) {
+            // 设置运算符和第一个操作数
+            _pendingOperator = extractedOp;
+            if (numStr.length() > 0) {
+                _previousNumber = numStr.toDouble();
+            }
+            CALC_LOG_D("从表达式中提取: 运算符=%d, 第一个操作数=%.6f", 
+                       (int)_pendingOperator, _previousNumber);
+        }
+    }
+    
+    // 修改判断条件，只要引擎存在且有运算符即可执行计算
     if (!_engine || _pendingOperator == Operator::NONE) {
+        CALC_LOG_W("无法执行计算: 引擎=%p, 运算符=%d", _engine.get(), (int)_pendingOperator);
         return false;
     }
     
@@ -464,10 +560,22 @@ void CalculatorCore::handleFunctionInput(const KeyConfig* keyConfig) {
     CALC_LOG_V("功能输入 (新): %s", keyConfig->label.c_str());
     
     if (keyConfig->operation == Operator::EQUALS) {
-        CALC_LOG_D("等号键被按下. 待处理运算符: %d, 表达式: '%s'", 
-                   (int)_pendingOperator, _expressionDisplay.c_str());
+        // 增加更详细的调试信息，帮助分析问题
+        Serial.printf("[CALC] 等号键详细信息: _pendingOperator=%d, _expressionDisplay='%s', _currentNumber=%.6f, _state=%d\n", 
+                   (int)_pendingOperator, _expressionDisplay.c_str(), _currentNumber, (int)_state);
         
-        if (_pendingOperator != Operator::NONE && !_expressionDisplay.isEmpty()) {
+        // 检查表达式格式，确认它是否包含运算符
+        bool expressionHasOperator = false;
+        for (size_t i = 0; i < _expressionDisplay.length(); i++) {
+            char c = _expressionDisplay.charAt(i);
+            if (c == '+' || c == '-' || c == '*' || c == '/') {
+                expressionHasOperator = true;
+                break;
+            }
+        }
+        
+        // 修改判断条件，只要有表达式并且表达式中包含运算符即可
+        if ((_pendingOperator != Operator::NONE || expressionHasOperator) && !_expressionDisplay.isEmpty()) {
             // 将最后输入的数字添加到表达式中，形成完整表达式
             String completeExpression = _expressionDisplay + NumberFormatter::format(_currentNumber);
             
@@ -485,6 +593,18 @@ void CalculatorCore::handleFunctionInput(const KeyConfig* keyConfig) {
                 addToHistory(completeExpression, result);
                 
                 CALC_LOG_D("等号执行: %s", _expressionDisplay.c_str());
+            }
+        } else {
+            // 如果没有待处理运算符但有表达式，尝试从表达式中提取运算符
+            if (_expressionDisplay.isEmpty()) {
+                // 没有表达式，无法执行计算
+                CALC_LOG_W("等号条件不满足 - 没有表达式可以计算");
+            } else if (!expressionHasOperator) {
+                // 有表达式但没有运算符，无法执行计算
+                CALC_LOG_W("等号条件不满足 - 表达式中没有运算符");
+            } else {
+                CALC_LOG_W("等号条件不满足 - 待处理运算符: %d (NONE=%d), 表达式为空: %s", 
+                       (int)_pendingOperator, (int)Operator::NONE, _expressionDisplay.isEmpty() ? "是" : "否");
             }
         }
     } else if (keyConfig->operation == Operator::PERCENT) {

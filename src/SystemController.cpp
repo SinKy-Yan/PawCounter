@@ -6,6 +6,8 @@
 #include "config.h"
 #include <esp_system.h>
 #include <esp_task_wdt.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 // 全局系统控制器实例
 static SystemController* g_systemController = nullptr;
@@ -57,7 +59,7 @@ SystemController::~SystemController() {
 bool SystemController::initialize() {
     LOG_I("SYS", "系统控制器初始化");
     
-    enterCriticalSection();
+    // enterCriticalSection();
     
     try {
         // 初始化组件
@@ -72,13 +74,13 @@ bool SystemController::initialize() {
         // 设置状态
         setState(SystemState::RUNNING);
         
-        exitCriticalSection();
+        // exitCriticalSection();
         
         LOG_I("SYS", "系统控制器初始化完成");
         return true;
         
     } catch (const std::exception& e) {
-        exitCriticalSection();
+        // exitCriticalSection();
         LOG_E("SYS", "系统控制器初始化失败: %s", e.what());
         setState(SystemState::ERROR);
         return false;
@@ -87,26 +89,27 @@ bool SystemController::initialize() {
 
 void SystemController::initializeComponents() {
     // 获取配置管理器引用
-    ConfigManager& configMgr = ConfigManager::getInstance();
-    if (!configMgr.begin()) {
+    configManager = &ConfigManager::getInstance();
+    if (!configManager->begin()) {
         throw std::runtime_error("配置管理器初始化失败");
     }
     
     // 获取日志系统引用
-    Logger& loggerInst = Logger::getInstance();
+    logger = &Logger::getInstance();
     LoggerConfig logConfig = Logger::getDefaultConfig();
-    logConfig.level = static_cast<log_level_t>(configMgr.getLogLevel());
-    loggerInst.begin(logConfig);
+    logConfig.level = static_cast<log_level_t>(configManager->getLogLevel());
+    logger->begin(logConfig);
     
     // 获取休眠管理器引用
-    SleepManager& sleepMgr = SleepManager::instance();
-    uint32_t sleepTimeout = configMgr.getSleepTimeout();
-    sleepMgr.begin(sleepTimeout);
+    sleepManager = &SleepManager::instance();
+    uint32_t sleepTimeout = configManager->getSleepTimeout();
+    sleepManager->begin(sleepTimeout);
     
     // 注册休眠回调
     sleepManager->addCallback(
-        [this](void*) { this->onEnterSleep(); },
-        [this](void*) { this->onExitSleep(); }
+        [](void* context) { static_cast<SystemController*>(context)->onEnterSleep(); },
+        [](void* context) { static_cast<SystemController*>(context)->onExitSleep(); },
+        this
     );
     
     LOG_I("SYS", "系统组件初始化完成");
@@ -159,6 +162,10 @@ void SystemController::setupDefaultCommands() {
     registerCommand("font", "字体测试", 
                    [this](const String& args) { handleFontCommand(args); });
     
+    // 添加重置串口命令
+    registerCommand("reset_serial", "重置串口缓冲区", 
+                   [this](const String& args) { handleResetSerialCommand(args); });
+    
     LOG_I("SYS", "默认命令注册完成，共 %zu 个命令", serialCommands.size());
 }
 
@@ -188,32 +195,76 @@ void SystemController::registerCommand(const String& cmd, const String& desc,
 void SystemController::processSerialCommands() {
     if (!Serial.available()) return;
     
-    // 读取命令
+    // 读取命令并进行改进的缓冲区管理
+    uint32_t startTime = millis();
+    
+    // 给串口一点时间接收完整的命令
+    delay(10);
+    
+    // 先清空旧的缓冲区
+    if (commandBuffer.length() > 100) {  // 如果缓冲区异常大，可能存在数据堆积
+        LOG_W("SYS", "命令缓冲区异常长度: %d，已重置", commandBuffer.length());
+        commandBuffer.clear();  // 重置异常的缓冲区
+    }
+    
+    // 读取所有可用字符
+    bool hasNewLine = false;
     while (Serial.available()) {
         char c = Serial.read();
+        
+        // 检测到换行符时处理命令
         if (c == '\n' || c == '\r') {
-            if (!commandBuffer.isEmpty()) {
-                handleCommand(commandBuffer);
-                commandBuffer.clear();
-            }
+            hasNewLine = true;
+            // 不将换行符添加到缓冲区
         } else {
             commandBuffer += c;
         }
+        
+        // 防止超时
+        if (millis() - startTime > COMMAND_TIMEOUT) {
+            LOG_W("SYS", "命令读取超时");
+            break;
+        }
+    }
+    
+    // 只有接收到完整的命令行（有换行符）时才处理命令
+    if (hasNewLine && !commandBuffer.isEmpty()) {
+        LOG_D("SYS", "处理命令: '%s'", commandBuffer.c_str());
+        handleCommand(commandBuffer);
+        commandBuffer.clear();  // 处理完成后清空缓冲区
     }
 }
 
 void SystemController::handleCommand(const String& command) {
+    // 去除前后空白
     String cmd = command;
     cmd.trim();
     
     if (cmd.isEmpty()) return;
+    
+    // 检查命令是否包含非打印字符，这可能表示数据损坏
+    bool hasNonPrintable = false;
+    for (unsigned int i = 0; i < cmd.length(); i++) {
+        if (cmd[i] < 32 || cmd[i] > 126) {
+            hasNonPrintable = true;
+            break;
+        }
+    }
+    
+    if (hasNonPrintable) {
+        LOG_W("SYS", "命令包含非法字符，已忽略");
+        return;
+    }
     
     // 分割命令和参数
     int spaceIndex = cmd.indexOf(' ');
     String mainCmd = (spaceIndex > 0) ? cmd.substring(0, spaceIndex) : cmd;
     String args = (spaceIndex > 0) ? cmd.substring(spaceIndex + 1) : "";
     
+    // 转换命令为小写，但参数保持原样
     mainCmd.toLowerCase();
+    
+    LOG_D("SYS", "解析命令: '%s'，参数: '%s'", mainCmd.c_str(), args.c_str());
     
     // 查找并执行命令
     bool found = false;
@@ -232,6 +283,7 @@ void SystemController::handleCommand(const String& command) {
     
     if (!found) {
         Serial.printf("未知命令: '%s'，输入 'help' 查看帮助\n", mainCmd.c_str());
+        LOG_W("SYS", "未知命令: '%s'", mainCmd.c_str());
     }
 }
 
@@ -421,9 +473,9 @@ void SystemController::saveConfigIfDirty() {
 bool SystemController::getConfigValue(const String& key, String& value) const {
     if (!configManager) return false;
     
-    enterCriticalSection();
+    // enterCriticalSection();
     // TODO: 实现配置值获取
-    exitCriticalSection();
+    // exitCriticalSection();
     
     return true;
 }
@@ -431,10 +483,10 @@ bool SystemController::getConfigValue(const String& key, String& value) const {
 bool SystemController::setConfigValue(const String& key, const String& value) {
     if (!configManager) return false;
     
-    enterCriticalSection();
+    // enterCriticalSection();
     // TODO: 实现配置值设置
     configDirty = true;
-    exitCriticalSection();
+    // exitCriticalSection();
     
     return true;
 }
@@ -444,7 +496,7 @@ void SystemController::updateSystemMonitorData() {
     monitorData.minFreeHeap = ESP.getMinFreeHeap();
     monitorData.maxAllocHeap = ESP.getMaxAllocHeap();
     monitorData.freeSketchSpace = ESP.getFreeSketchSpace();
-    monitorData.cpuFreq = ESP.getCpuFreqMhz();
+    monitorData.cpuFreq = ESP.getCpuFreqMHz();
     monitorData.uptime = millis() / 1000;
     monitorData.taskCount = uxTaskGetNumberOfTasks();
     monitorData.state = currentState;
@@ -490,6 +542,16 @@ void SystemController::printTaskStatus() {
     Serial.println("\n=== 任务状态 ===");
     Serial.printf("任务总数: %lu\n", monitorData.taskCount);
     
+    // 显示基本系统信息（不使用高级FreeRTOS监控功能）
+    Serial.println("基本系统信息:");
+    Serial.printf("空闲堆内存: %u 字节\n", ESP.getFreeHeap());
+    Serial.printf("最小空闲堆内存: %u 字节\n", ESP.getMinFreeHeap());
+    Serial.printf("CPU频率: %u MHz\n", ESP.getCpuFreqMHz());
+    Serial.printf("运行时间: %u 秒\n", millis() / 1000);
+    Serial.println("详细任务监控功能已禁用（需要configUSE_TRACE_FACILITY=1）");
+    
+    /*
+#if (configUSE_TRACE_FACILITY == 1)
     // 获取任务列表
     TaskStatus_t* taskStatusArray;
     UBaseType_t taskCount = uxTaskGetNumberOfTasks();
@@ -522,6 +584,10 @@ void SystemController::printTaskStatus() {
         
         vPortFree(taskStatusArray);
     }
+#else
+    Serial.println("任务监控功能需要启用 configUSE_TRACE_FACILITY");
+#endif
+    */
     
     Serial.println("================\n");
 }
@@ -643,13 +709,26 @@ void SystemController::shutdown() {
     
     setState(SystemState::SHUTDOWN);
     
-    // 清理组件
-    sleepManager.reset();
-    logger.reset();
-    configManager.reset();
+    // 清理组件（单例对象不需要手动释放）
+    sleepManager = nullptr;
+    logger = nullptr;
+    configManager = nullptr;
     
     // 清理资源
     serialCommands.clear();
     systemCallbacks.clear();
     errorLog.clear();
+}
+
+void SystemController::handleResetSerialCommand(const String& args) {
+    // 清空串口缓冲区
+    while (Serial.available()) {
+        Serial.read();
+    }
+    
+    // 清空命令缓冲区
+    commandBuffer.clear();
+    
+    Serial.println("串口缓冲区已重置");
+    LOG_I("SYS", "串口缓冲区已重置");
 }

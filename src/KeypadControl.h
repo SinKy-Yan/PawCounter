@@ -246,6 +246,11 @@ public:
      */
     void startBuzzer(uint16_t freq, uint16_t duration);
 
+    /**
+     * @brief 停止蜂鸣器
+     */
+    void stopBuzzer();
+
     #ifdef DEBUG_MODE
     /**
      * @brief 打印调试信息
@@ -339,8 +344,9 @@ private:
      * @brief 处理按键事件
      * @param type 事件类型
      * @param key 按键编号
+     * @param triggerBuzzer 是否触发蜂鸣器反馈，默认为true
      */
-    void handleKeyEvent(KeyEventType type, uint8_t key);
+    void handleKeyEvent(KeyEventType type, uint8_t key, bool triggerBuzzer = true);
 
     /**
      * @brief 检查组合键
