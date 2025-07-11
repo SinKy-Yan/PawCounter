@@ -8,6 +8,8 @@ CalculatorApplication* CalculatorApplication::_currentInstance = nullptr;
 #include "SimpleHID.h"
 #include "FontTester.h"
 #include "CalculationEngine.h"
+#include "UIManager.h"
+#include "UIOptimizer.h"
 #include "Logger.h"
 #include "config.h"
 #include <FastLED.h>

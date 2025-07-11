@@ -16,6 +16,8 @@ class LVGLDisplay;
 class SimpleHID;
 class FontTester;
 class CalculationEngine;
+class UIManager;
+class UIOptimizer;
 
 // 应用状态枚举
 enum class ApplicationState {
@@ -95,6 +97,7 @@ public:
     void switchToCalculatorMode();
     void switchToFontTestMode();
     void switchToSettingsMode();
+    void switchToUIPage(uint8_t pageIndex);
     
     // 错误处理
     void handleApplicationError(const String& error);
@@ -112,6 +115,8 @@ private:
     std::unique_ptr<SimpleHID> simpleHID;
     std::unique_ptr<FontTester> fontTester;
     std::shared_ptr<CalculationEngine> calculationEngine;  // 修改为shared_ptr
+    std::unique_ptr<UIManager> uiManager;       // UI管理器
+    std::unique_ptr<UIOptimizer> uiOptimizer;   // UI优化器
     
     // 应用状态
     ApplicationState currentState;

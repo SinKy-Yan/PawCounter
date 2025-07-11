@@ -24,6 +24,13 @@ bool LVGLCalculatorUI::begin() {
         return false;
     }
     
+    // 初始化字体管理器
+    FontManager& fontMgr = FontManager::getInstance();
+    if (!fontMgr.initialize()) {
+        LOG_E(TAG_LVGL_UI, "字体管理器初始化失败");
+        return false;
+    }
+    
     // 初始化UI
     initializeUI();
     
@@ -83,21 +90,22 @@ void LVGLCalculatorUI::setLabelStyle(lv_obj_t* label, uint32_t color, uint8_t fo
     lv_obj_set_style_text_color(label, lv_color_hex(color), LV_PART_MAIN);
     lv_obj_set_style_text_opa(label, LV_OPA_COVER, LV_PART_MAIN);
     
-    // 根据字体大小设置LVGL字体
-    // LVGL默认字体大小映射
-    const lv_font_t* font = LV_FONT_DEFAULT;
+    // 使用FontManager选择合适的字体
+    FontManager& fontMgr = FontManager::getInstance();
     switch (font_size) {
         case 3:
-            font = LV_FONT_DEFAULT;  // 大约对应textSize=3
+            // 小字体用于历史记录
+            fontMgr.applyFont(label, FontManager::USAGE_HISTORY);
             break;
         case 8:
-            font = LV_FONT_DEFAULT;  // 需要更大的字体，先使用默认
+            // 大字体用于数字显示
+            fontMgr.applyFont(label, FontManager::USAGE_NUMBERS);
             break;
         default:
-            font = LV_FONT_DEFAULT;
+            // 默认使用通用字体
+            fontMgr.applyFont(label, FontManager::USAGE_GENERAL);
             break;
     }
-    lv_obj_set_style_text_font(label, font, LV_PART_MAIN);
 }
 
 void LVGLCalculatorUI::pushHistory(const String& line) {

@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <lvgl.h>
 #include "LVGLDisplay.h"
+#include "FontManager.h"
 
 /**
  * @brief LVGL计算器UI类

@@ -23,6 +23,13 @@ bool FontTester::begin() {
         return false;
     }
     
+    // 初始化字体管理器（如果还未初始化）
+    FontManager& fontMgr = FontManager::getInstance();
+    if (!fontMgr.initialize()) {
+        LOG_E(TAG_FONT_TEST, "字体管理器初始化失败");
+        return false;
+    }
+    
     loadFonts();
     createTestUI();
     
@@ -88,35 +95,40 @@ void FontTester::showPreviousFont() {
 }
 
 void FontTester::updateFontDisplay() {
-    const lv_font_t* font = LV_FONT_DEFAULT;
+    FontManager& fontMgr = FontManager::getInstance();
+    FontManager::FontType type = FontManager::FONT_MEDIUM;
     const char* name = "Default";
     
     switch (_current_font_index) {
         case 0:
-            font = LV_FONT_DEFAULT;
-            name = "Default";
+            type = FontManager::FONT_MEDIUM;
+            name = "Default (Medium)";
             break;
         case 1:
-            font = _chill_7px ? _chill_7px : LV_FONT_DEFAULT;
-            name = _chill_7px ? "ChillBitmap 7px" : "ChillBitmap 7px (Error)";
+            type = FontManager::FONT_SMALL;
+            name = "ChillBitmap 7px";
             break;
         case 2:
-            font = _chill_16px ? _chill_16px : LV_FONT_DEFAULT;
-            name = _chill_16px ? "ChillBitmap 16px" : "ChillBitmap 16px (Error)";
+            type = FontManager::FONT_LARGE;
+            name = "ChillBitmap 16px";
             break;
     }
     
+    // 使用FontManager应用字体
     if (_ascii_label) {
-        lv_obj_set_style_text_font(_ascii_label, font, LV_PART_MAIN);
+        fontMgr.applyFont(_ascii_label, type);
     }
     if (_chinese_label) {
-        lv_obj_set_style_text_font(_chinese_label, font, LV_PART_MAIN);
+        fontMgr.applyFont(_chinese_label, type);
     }
     if (_info_label) {
         lv_label_set_text(_info_label, name);
     }
     
-    LOG_I(TAG_FONT_TEST, "切换字体: %s", name);
+    // 显示字体信息
+    FontManager::FontInfo info = fontMgr.getFontInfo(type);
+    LOG_I(TAG_FONT_TEST, "切换字体: %s (大小: %d, 内存: %d bytes)", 
+          name, info.size, info.memory_usage);
 }
 
 void FontTester::setTestFont(const lv_font_t* font, const char* font_name) {
