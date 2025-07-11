@@ -67,7 +67,7 @@ public:
         uint32_t memory_limit_kb;
         
         FontConfig() : primary_font(FONT_MEDIUM), fallback_font(FONT_SMALL), 
-                      enable_memory_optimization(true), memory_limit_kb(32) {}
+                      enable_memory_optimization(true), memory_limit_kb(128) {}
     };
 
     static FontManager& getInstance();

@@ -90,7 +90,11 @@ void LVGLCalculatorUI::setLabelStyle(lv_obj_t* label, uint32_t color, uint8_t fo
     lv_obj_set_style_text_color(label, lv_color_hex(color), LV_PART_MAIN);
     lv_obj_set_style_text_opa(label, LV_OPA_COVER, LV_PART_MAIN);
     
-    // 使用FontManager选择合适的字体
+    // 使用LVGL默认字体替代自定义字体，避免字体渲染问题
+    lv_obj_set_style_text_font(label, LV_FONT_DEFAULT, LV_PART_MAIN);
+    
+    // 原自定义字体代码（暂时禁用）
+    /*
     FontManager& fontMgr = FontManager::getInstance();
     switch (font_size) {
         case 3:
@@ -106,6 +110,7 @@ void LVGLCalculatorUI::setLabelStyle(lv_obj_t* label, uint32_t color, uint8_t fo
             fontMgr.applyFont(label, FontManager::USAGE_GENERAL);
             break;
     }
+    */
 }
 
 void LVGLCalculatorUI::pushHistory(const String& line) {
