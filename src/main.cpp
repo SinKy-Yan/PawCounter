@@ -14,6 +14,7 @@
 #include "LVGLDisplay.h"
 #include "BackLightControl.h"
 #include <FastLED.h>
+#include "all_fonts.h"
 
 // 全局对象
 LVGLDisplay* lvgl_display = nullptr;
@@ -143,7 +144,7 @@ void initLVGLDisplay() {
     // 创建测试显示内容
     lv_obj_t* label = lv_label_create(lv_scr_act());
     lv_label_set_text(label, "PawCounter\nFreeRTOS v2.0\nSystem Ready");
-    lv_obj_set_style_text_font(label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(label, &WenQuanYi_Bitmap_Song_39px, 0);
     lv_obj_set_style_text_color(label, lv_color_white(), 0);
     lv_obj_center(label);
     

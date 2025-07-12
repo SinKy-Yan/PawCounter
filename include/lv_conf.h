@@ -1,6 +1,7 @@
 #pragma once
 
 #define LV_CONF_INCLUDE_SIMPLE
+#define LV_LVGL_H_INCLUDE_SIMPLE
 
 // 启用LVGL
 #define LV_CONF_SKIP 0

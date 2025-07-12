@@ -1,5 +1,6 @@
 #include "LVGLDisplay.h"
 #include "config.h"
+#include "all_fonts.h"
 
 LVGLDisplay* LVGLDisplay::_instance = nullptr;
 
@@ -64,7 +65,7 @@ bool LVGLDisplay::begin() {
     lv_theme_t* theme = lv_theme_default_init(_disp, lv_palette_main(LV_PALETTE_BLUE), 
                                              lv_palette_main(LV_PALETTE_RED), 
                                              LV_THEME_DEFAULT_DARK, 
-                                             LV_FONT_DEFAULT);
+                                             &WenQuanYi_Bitmap_Song_39px);
     lv_disp_set_theme(_disp, theme);
     
     return true;

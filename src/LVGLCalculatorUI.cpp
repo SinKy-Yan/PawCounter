@@ -1,5 +1,6 @@
 #include "LVGLCalculatorUI.h"
 #include "Logger.h"
+#include "all_fonts.h"
 
 #define TAG_LVGL_UI "LVGLCalcUI"
 
@@ -90,8 +91,8 @@ void LVGLCalculatorUI::setLabelStyle(lv_obj_t* label, uint32_t color, uint8_t fo
     lv_obj_set_style_text_color(label, lv_color_hex(color), LV_PART_MAIN);
     lv_obj_set_style_text_opa(label, LV_OPA_COVER, LV_PART_MAIN);
     
-    // 使用LVGL默认字体替代自定义字体，避免字体渲染问题
-    lv_obj_set_style_text_font(label, LV_FONT_DEFAULT, LV_PART_MAIN);
+    // 使用WenQuanYi_Bitmap_Song_39px完整字符集字体
+    lv_obj_set_style_text_font(label, &WenQuanYi_Bitmap_Song_39px, LV_PART_MAIN);
     
     // 原自定义字体代码（暂时禁用）
     /*

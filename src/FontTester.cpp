@@ -1,5 +1,6 @@
 #include "FontTester.h"
 #include "Logger.h"
+#include "all_fonts.h"
 #include <lvgl.h>
 
 #define TAG_FONT_TEST "FontTester"
@@ -39,9 +40,9 @@ bool FontTester::begin() {
 void FontTester::loadFonts() {
     LOG_I(TAG_FONT_TEST, "加载生成的字体文件...");
     
-    // 直接使用extern声明的字体
-    _chill_7px = &chill_bitmap_7px;
-    _chill_16px = &chill_bitmap_16px;
+    // 统一使用WenQuanYi字体 - 完整字符集，优化尺寸
+    _chill_7px = &WenQuanYi_Bitmap_Song_39px;
+    _chill_16px = &WenQuanYi_Bitmap_Song_39px;
     
     LOG_I(TAG_FONT_TEST, "7px字体: %s", _chill_7px ? "成功" : "失败");
     LOG_I(TAG_FONT_TEST, "16px字体: %s", _chill_16px ? "成功" : "失败");

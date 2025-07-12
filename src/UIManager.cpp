@@ -1,5 +1,6 @@
 #include "UIManager.h"
 #include "Logger.h"
+#include "all_fonts.h"
 
 #define TAG_UI "UIManager"
 
@@ -49,7 +50,7 @@ static const ThemeColors HIGH_CONTRAST_THEME = {
 
 UIManager::UIManager(LVGLDisplay* display) 
     : _display(display), _currentPage(UIPage::CALCULATOR), 
-      _currentTheme(UITheme::DARK), _currentFont(LV_FONT_DEFAULT), 
+      _currentTheme(UITheme::DARK), _currentFont(&WenQuanYi_Bitmap_Song_39px), 
       _currentFontIndex(0) {
     _instance = this;
     g_uiManager = this;
@@ -192,9 +193,7 @@ void UIManager::initializeThemes() {
 void UIManager::initializeFonts() {
     // 添加可用字体
     _availableFonts.clear();
-    _availableFonts.push_back(LV_FONT_DEFAULT);
-    _availableFonts.push_back(&chill_bitmap_7px);
-    _availableFonts.push_back(&chill_bitmap_16px);
+    _availableFonts.push_back(&WenQuanYi_Bitmap_Song_39px);
     
     _currentFont = _availableFonts[0];
     _currentFontIndex = 0;

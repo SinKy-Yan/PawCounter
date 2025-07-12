@@ -1,5 +1,5 @@
 #include "FontManager.h"
-#include "ChillBitmapFonts.h"
+#include "all_fonts.h"
 #include "Logger.h"
 #include <algorithm>
 
@@ -82,28 +82,24 @@ bool FontManager::registerFont(FontType type, const lv_font_t* font, const char*
 bool FontManager::registerChillBitmapFonts() {
     bool success = true;
     
-    // 注册7px字体作为小字体
-    if (!registerFont(FONT_SMALL, &chill_bitmap_7px, "ChillBitmap 7px", USAGE_HISTORY)) {
-        LOG_E(TAG_FONT_MGR, "注册7px字体失败");
+    // 统一使用WenQuanYi_Bitmap_Song_39px字体 - 完整字符集，优化尺寸
+    if (!registerFont(FONT_SMALL, &WenQuanYi_Bitmap_Song_39px, "WenQuanYi 39px", USAGE_HISTORY)) {
+        LOG_E(TAG_FONT_MGR, "注册小字体失败");
         success = false;
     }
     
-    // 注册16px字体作为大字体
-    if (!registerFont(FONT_LARGE, &chill_bitmap_16px, "ChillBitmap 16px", USAGE_NUMBERS)) {
-        LOG_E(TAG_FONT_MGR, "注册16px字体失败");
+    if (!registerFont(FONT_LARGE, &WenQuanYi_Bitmap_Song_39px, "WenQuanYi 39px", USAGE_NUMBERS)) {
+        LOG_E(TAG_FONT_MGR, "注册大字体失败");
         success = false;
     }
     
-    // 注册16px字体也作为中等字体（通用）
-    if (!registerFont(FONT_MEDIUM, &chill_bitmap_16px, "ChillBitmap 16px", USAGE_GENERAL)) {
+    if (!registerFont(FONT_MEDIUM, &WenQuanYi_Bitmap_Song_39px, "WenQuanYi 39px", USAGE_GENERAL)) {
         LOG_E(TAG_FONT_MGR, "注册中等字体失败");
         success = false;
     }
     
-    // 使用默认字体作为回退
-    if (LV_FONT_DEFAULT) {
-        registerFont(FONT_EXTRA_LARGE, LV_FONT_DEFAULT, "LVGL Default", USAGE_SYMBOLS);
-    }
+    // 使用WenQuanYi字体作为回退
+    registerFont(FONT_EXTRA_LARGE, &WenQuanYi_Bitmap_Song_39px, "WenQuanYi 39px", USAGE_SYMBOLS);
     
     return success;
 }
