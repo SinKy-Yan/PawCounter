@@ -534,7 +534,7 @@ void CalculatorCore::addToHistory(const String& expression, double result) {
     
     // 格式化历史记录行用于显示
     String resultStr = NumberFormatter::format(result, 6);
-    String historyLine = expression + " = " + resultStr;
+    String historyLine = expression + "=" + resultStr;
     
     // 更新LVGL UI
     if (_lvgl_ui) {

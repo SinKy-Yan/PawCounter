@@ -14,7 +14,6 @@
 class CalculatorCore;
 class LVGLDisplay;
 class SimpleHID;
-class FontTester;
 class CalculationEngine;
 class UIManager;
 class UIOptimizer;
@@ -113,7 +112,6 @@ private:
     LVGLDisplay* lvglDisplay;  // 不管理生命周期，只是引用全局对象
     std::unique_ptr<KeypadControl> keypadControl;
     std::unique_ptr<SimpleHID> simpleHID;
-    std::unique_ptr<FontTester> fontTester;
     std::shared_ptr<CalculationEngine> calculationEngine;  // 修改为shared_ptr
     std::unique_ptr<UIManager> uiManager;       // UI管理器
     std::unique_ptr<UIOptimizer> uiOptimizer;   // UI优化器

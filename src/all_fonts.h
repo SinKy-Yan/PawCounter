@@ -3,7 +3,8 @@
 
 #include "lvgl.h"
 
-// 包含WenQuanYi_Bitmap_Song_39px字体 - 完整字符集，优化尺寸
+// 包含WenQuanYi字体 - 不同尺寸
 #include "font/WenQuanYi_Bitmap_Song_39px.c"
+#include "font/WenQuanYi_Bitmap_Song_78px.c"
 
 #endif

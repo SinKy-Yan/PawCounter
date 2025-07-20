@@ -25,12 +25,7 @@ bool LVGLCalculatorUI::begin() {
         return false;
     }
     
-    // 初始化字体管理器
-    FontManager& fontMgr = FontManager::getInstance();
-    if (!fontMgr.initialize()) {
-        LOG_E(TAG_LVGL_UI, "字体管理器初始化失败");
-        return false;
-    }
+    // 字体已通过all_fonts.h包含，无需额外初始化
     
     // 初始化UI
     initializeUI();
@@ -72,7 +67,7 @@ void LVGLCalculatorUI::createHistoryLabels() {
 }
 
 void LVGLCalculatorUI::createExpressionLabel() {
-    // 当前表达式
+    // 当前表达式显示区 - 使用39px字体
     _expr_label = lv_label_create(_screen);
     lv_obj_set_pos(_expr_label, PADDING, 32);
     setLabelStyle(_expr_label, COLOR_FG, 3);
@@ -80,7 +75,7 @@ void LVGLCalculatorUI::createExpressionLabel() {
 }
 
 void LVGLCalculatorUI::createResultLabel() {
-    // 计算结果（大字体）
+    // 输入区/计算结果（78px大字体）
     _result_label = lv_label_create(_screen);
     lv_obj_set_pos(_result_label, PADDING, 60);
     setLabelStyle(_result_label, COLOR_FG, 8);
@@ -91,27 +86,17 @@ void LVGLCalculatorUI::setLabelStyle(lv_obj_t* label, uint32_t color, uint8_t fo
     lv_obj_set_style_text_color(label, lv_color_hex(color), LV_PART_MAIN);
     lv_obj_set_style_text_opa(label, LV_OPA_COVER, LV_PART_MAIN);
     
-    // 使用WenQuanYi_Bitmap_Song_39px完整字符集字体
-    lv_obj_set_style_text_font(label, &WenQuanYi_Bitmap_Song_39px, LV_PART_MAIN);
-    
-    // 原自定义字体代码（暂时禁用）
-    /*
-    FontManager& fontMgr = FontManager::getInstance();
+    // 根据font_size选择合适的字体
     switch (font_size) {
-        case 3:
-            // 小字体用于历史记录
-            fontMgr.applyFont(label, FontManager::USAGE_HISTORY);
-            break;
         case 8:
-            // 大字体用于数字显示
-            fontMgr.applyFont(label, FontManager::USAGE_NUMBERS);
+            // 大字体用于数字显示（输入区）
+            lv_obj_set_style_text_font(label, &WenQuanYi_Bitmap_Song_78px, LV_PART_MAIN);
             break;
         default:
-            // 默认使用通用字体
-            fontMgr.applyFont(label, FontManager::USAGE_GENERAL);
+            // 默认使用39px字体（历史记录、表达式等）
+            lv_obj_set_style_text_font(label, &WenQuanYi_Bitmap_Song_39px, LV_PART_MAIN);
             break;
     }
-    */
 }
 
 void LVGLCalculatorUI::pushHistory(const String& line) {

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm:*)",
+      "Bash(\"C:\\Users\\yingxia-meow\\.platformio\\penv\\Scripts\\pio.exe\" run --target checkprogsize)",
+      "Bash(\"/mnt/c/Users/yingxia-meow/.platformio/penv/Scripts/pio.exe\" run --target checkprogsize)"
+    ],
+    "deny": []
+  }
+}

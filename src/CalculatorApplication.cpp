@@ -6,7 +6,6 @@ CalculatorApplication* CalculatorApplication::_currentInstance = nullptr;
 #include "LVGLDisplay.h"
 #include "KeypadControl.h"
 #include "SimpleHID.h"
-#include "FontTester.h"
 #include "CalculationEngine.h"
 #include "UIManager.h"
 #include "UIOptimizer.h"
@@ -153,22 +152,7 @@ void CalculatorApplication::initializeComponents() {
         simpleHID.reset();
     }
     
-    // 暂时跳过字体测试器初始化
-    // 初始化字体测试器（可选）
-    /*
-    try {
-        if (lvglDisplay) {
-            fontTester.reset(new FontTester(lvglDisplay.get()));
-            if (!fontTester->begin()) {
-                LOG_W("APP", "字体测试器初始化失败");
-                fontTester.reset();
-            }
-        }
-    } catch (const std::exception& e) {
-        LOG_W("APP", "字体测试器初始化异常: %s", e.what());
-        fontTester.reset();
-    }
-    */
+    // FontTester功能已移除
     
     LOG_I("APP", "应用组件初始化完成");
 }
@@ -491,10 +475,7 @@ void CalculatorApplication::updateCalculatorDisplay() {
 }
 
 void CalculatorApplication::updateFontTestDisplay() {
-    if (fontTester) {
-        // 字体测试器有自己的更新逻辑
-        // 这里可以添加额外的更新逻辑
-    }
+    // FontTester功能已移除
 }
 
 void CalculatorApplication::updateSettingsDisplay() {
@@ -757,9 +738,7 @@ void CalculatorApplication::initializeNewMode() {
             break;
             
         case ApplicationState::FONT_TEST_MODE:
-            if (fontTester) {
-                fontTester->showFontTest();
-            }
+            // FontTester功能已移除
             break;
             
         case ApplicationState::SETTINGS_MODE:
@@ -834,7 +813,7 @@ void CalculatorApplication::shutdown() {
     stopBuzzer();
     
     // 清理组件
-    fontTester.reset();
+    // fontTester已移除
     simpleHID.reset();
     calculatorCore.reset();
     keypadControl.reset();
