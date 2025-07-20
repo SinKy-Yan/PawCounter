@@ -152,7 +152,18 @@ void CalculatorApplication::initializeComponents() {
         simpleHID.reset();
     }
     
-    // FontTester功能已移除
+    // 初始化UI管理器
+    if (lvglDisplay) {
+        uiManager.reset(new UIManager(lvglDisplay));
+        if (!uiManager->begin()) {
+            LOG_W("APP", "UI管理器初始化失败");
+            uiManager.reset();
+        } else {
+            LOG_I("APP", "UI管理器初始化成功");
+        }
+    } else {
+        LOG_W("APP", "LVGL显示未初始化，跳过UI管理器初始化");
+    }
     
     LOG_I("APP", "应用组件初始化完成");
 }
@@ -267,6 +278,20 @@ void CalculatorApplication::processKeyPress(uint8_t key) {
     // 触发LED效果
     uint32_t color = CRGB::White;  // 默认白色
     triggerLEDEffect(key - 1, color, 200, 100);  // key-1因为LED索引从0开始
+    
+    // KEY1特殊处理：在计算器和设置页面之间切换
+    if (key == 1) {
+        if (currentState == ApplicationState::CALCULATOR_MODE) {
+            setState(ApplicationState::SETTINGS_MODE);
+            LOG_I("APP", "KEY1按下: 切换到设置页面");
+        } else if (currentState == ApplicationState::SETTINGS_MODE) {
+            setState(ApplicationState::CALCULATOR_MODE);
+            LOG_I("APP", "KEY1按下: 切换到计算器页面");
+        }
+        // 标记显示需要更新
+        displayNeedsUpdate = true;
+        return;  // KEY1只用于切换，不进行其他处理
+    }
     
     // 移除重复的蜂鸣器触发代码，因为KeypadControl已经处理了蜂鸣器反馈
     // 原代码：
@@ -735,14 +760,22 @@ void CalculatorApplication::initializeNewMode() {
             if (calculatorCore) {
                 calculatorCore->initLVGLUI();
             }
+            if (uiManager) {
+                uiManager->switchToPage(UIPage::CALCULATOR);
+            }
             break;
             
         case ApplicationState::FONT_TEST_MODE:
             // FontTester功能已移除
+            if (uiManager) {
+                uiManager->switchToPage(UIPage::FONT_TEST);
+            }
             break;
             
         case ApplicationState::SETTINGS_MODE:
-            // 初始化设置界面
+            if (uiManager) {
+                uiManager->switchToPage(UIPage::SETTINGS_MAIN);
+            }
             break;
             
         case ApplicationState::ERROR_MODE:

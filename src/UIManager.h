@@ -167,6 +167,9 @@ private:
     lv_style_t _style_btn_pressed;
     lv_style_t _style_label;
     lv_style_t _style_container;
+    
+public:
+    // 公有样式对象，供设置页面访问
     lv_style_t _style_scrollbar;
 };
 

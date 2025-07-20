@@ -114,6 +114,13 @@ bool UIManager::switchToPage(UIPage page) {
         currentPageObj->hide();
     }
     
+    // 特殊处理CALCULATOR页面，使用原有的CalculatorCore UI
+    if (page == UIPage::CALCULATOR) {
+        LOG_I(TAG_UI, "切换到计算器页面（使用CalculatorCore UI）");
+        _currentPage = page;
+        return true;
+    }
+    
     // 显示新页面
     UIPageBase* newPageObj = findPage(page);
     if (!newPageObj) {
@@ -301,6 +308,11 @@ void UIManager::createBaseStyles() {
     lv_style_set_bg_opa(&_style_container, LV_OPA_COVER);
     lv_style_set_border_width(&_style_container, 0);
     lv_style_set_pad_all(&_style_container, 5);
+    
+    // 初始化滚动条样式（隐藏滚动条）
+    lv_style_init(&_style_scrollbar);
+    lv_style_set_width(&_style_scrollbar, 0);
+    lv_style_set_bg_opa(&_style_scrollbar, LV_OPA_TRANSP);
 }
 
 // ===================== 设置主菜单页面实现 =====================
@@ -329,6 +341,7 @@ bool SettingsMainPage::create() {
     lv_obj_set_size(_menu_container, 230, 90);
     lv_obj_set_style_bg_opa(_menu_container, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(_menu_container, 0, LV_PART_MAIN);
+    lv_obj_add_style(_menu_container, &UI_MANAGER()->_style_scrollbar, LV_PART_SCROLLBAR);
     
     createMenuItems();
     updateSelection();
@@ -369,10 +382,10 @@ void SettingsMainPage::handleKeyEvent(uint8_t key, bool isLongPress) {
 
 void SettingsMainPage::createMenuItems() {
     const char* menuItems[] = {
-        "键盘设置",
-        "显示设置", 
-        "音效设置",
-        "系统设置"
+        "Keyboard",
+        "Display", 
+        "Audio",
+        "System"
     };
     
     for (int i = 0; i < 4; i++) {
@@ -431,7 +444,7 @@ bool KeyboardSettingsPage::create() {
     // 创建标题
     _title_label = lv_label_create(_screen);
     lv_obj_set_pos(_title_label, 10, 5);
-    lv_label_set_text(_title_label, "键盘设置");
+    lv_label_set_text(_title_label, "Keyboard Settings");
     lv_obj_set_style_text_color(_title_label, lv_color_hex(CURRENT_THEME().primary), LV_PART_MAIN);
     lv_obj_set_style_text_font(_title_label, CURRENT_FONT(), LV_PART_MAIN);
     
@@ -441,6 +454,7 @@ bool KeyboardSettingsPage::create() {
     lv_obj_set_size(_settings_container, 230, 95);
     lv_obj_set_style_bg_opa(_settings_container, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(_settings_container, 0, LV_PART_MAIN);
+    lv_obj_add_style(_settings_container, &UI_MANAGER()->_style_scrollbar, LV_PART_SCROLLBAR);
     
     createKeyboardSettings();
     updateSettingsDisplay();
@@ -486,8 +500,8 @@ void KeyboardSettingsPage::createKeyboardSettings() {
     
     // 按键重复延迟
     SettingsItem repeatDelay = {
-        .title = "重复延迟",
-        .description = "按键重复触发延迟",
+        .title = "Repeat Delay",
+        .description = "Key repeat trigger delay",
         .currentValue = String(config.getRepeatDelay()) + "ms",
         .options = {"250ms", "500ms", "750ms", "1000ms"},
         .onChange = [&config](int index) {
@@ -500,8 +514,8 @@ void KeyboardSettingsPage::createKeyboardSettings() {
     
     // 按键重复速率
     SettingsItem repeatRate = {
-        .title = "重复速率",
-        .description = "按键重复触发速率",
+        .title = "Repeat Rate",
+        .description = "Key repeat trigger rate",
         .currentValue = String(config.getRepeatRate()) + "ms",
         .options = {"50ms", "100ms", "150ms", "200ms"},
         .onChange = [&config](int index) {
@@ -514,8 +528,8 @@ void KeyboardSettingsPage::createKeyboardSettings() {
     
     // 长按延迟
     SettingsItem longPressDelay = {
-        .title = "长按延迟",
-        .description = "长按触发延迟",
+        .title = "Long Press",
+        .description = "Long press trigger delay",
         .currentValue = String(config.getLongPressDelay()) + "ms",
         .options = {"500ms", "1000ms", "1500ms", "2000ms"},
         .onChange = [&config](int index) {
@@ -589,7 +603,7 @@ bool DisplaySettingsPage::create() {
     // 创建标题
     _title_label = lv_label_create(_screen);
     lv_obj_set_pos(_title_label, 10, 5);
-    lv_label_set_text(_title_label, "显示设置");
+    lv_label_set_text(_title_label, "Display Settings");
     lv_obj_set_style_text_color(_title_label, lv_color_hex(CURRENT_THEME().primary), LV_PART_MAIN);
     lv_obj_set_style_text_font(_title_label, CURRENT_FONT(), LV_PART_MAIN);
     
@@ -606,6 +620,7 @@ bool DisplaySettingsPage::create() {
     lv_obj_set_size(_settings_container, 230, 75);
     lv_obj_set_style_bg_opa(_settings_container, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(_settings_container, 0, LV_PART_MAIN);
+    lv_obj_add_style(_settings_container, &UI_MANAGER()->_style_scrollbar, LV_PART_SCROLLBAR);
     
     createDisplaySettings();
     updateSettingsDisplay();
@@ -658,10 +673,10 @@ void DisplaySettingsPage::createDisplaySettings() {
     
     // 字体选择
     SettingsItem fontSetting = {
-        .title = "字体",
-        .description = "选择显示字体",
-        .currentValue = "默认字体",
-        .options = {"默认字体", "Chill 7px", "Chill 16px"},
+        .title = "Font",
+        .description = "Select display font",
+        .currentValue = "Default Font",
+        .options = {"Default Font", "Chill 7px", "Chill 16px"},
         .onChange = [](int index) {
             // 字体切换在按键处理中实现
         },
@@ -671,8 +686,8 @@ void DisplaySettingsPage::createDisplaySettings() {
     
     // 背光亮度
     SettingsItem brightness = {
-        .title = "背光亮度",
-        .description = "调节背光亮度",
+        .title = "Backlight",
+        .description = "Adjust backlight brightness",
         .currentValue = String(config.getBacklightBrightness()) + "%",
         .options = {"25%", "50%", "75%", "100%"},
         .onChange = [&config](int index) {
@@ -685,10 +700,10 @@ void DisplaySettingsPage::createDisplaySettings() {
     
     // 主题选择
     SettingsItem theme = {
-        .title = "主题",
-        .description = "选择UI主题",
-        .currentValue = "深色主题",
-        .options = {"深色主题", "浅色主题", "高对比度"},
+        .title = "Theme",
+        .description = "Select UI theme",
+        .currentValue = "Dark Theme",
+        .options = {"Dark Theme", "Light Theme", "High Contrast"},
         .onChange = [](int index) {
             UITheme themes[] = {UITheme::DARK, UITheme::LIGHT, UITheme::HIGH_CONTRAST};
             UI_MANAGER()->setTheme(themes[index]);
@@ -757,7 +772,7 @@ bool AudioSettingsPage::create() {
     
     _title_label = lv_label_create(_screen);
     lv_obj_set_pos(_title_label, 10, 5);
-    lv_label_set_text(_title_label, "音效设置");
+    lv_label_set_text(_title_label, "Audio Settings");
     lv_obj_set_style_text_color(_title_label, lv_color_hex(CURRENT_THEME().primary), LV_PART_MAIN);
     lv_obj_set_style_text_font(_title_label, CURRENT_FONT(), LV_PART_MAIN);
     
@@ -766,6 +781,7 @@ bool AudioSettingsPage::create() {
     lv_obj_set_size(_settings_container, 230, 95);
     lv_obj_set_style_bg_opa(_settings_container, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(_settings_container, 0, LV_PART_MAIN);
+    lv_obj_add_style(_settings_container, &UI_MANAGER()->_style_scrollbar, LV_PART_SCROLLBAR);
     
     createAudioSettings();
     updateSettingsDisplay();
@@ -814,10 +830,10 @@ void AudioSettingsPage::createAudioSettings() {
     
     // 蜂鸣器开关
     SettingsItem buzzerEnabled = {
-        .title = "蜂鸣器",
-        .description = "开启/关闭蜂鸣器",
-        .currentValue = config.getBuzzerEnabled() ? "开启" : "关闭",
-        .options = {"关闭", "开启"},
+        .title = "Buzzer",
+        .description = "Enable/disable buzzer",
+        .currentValue = config.getBuzzerEnabled() ? "Enabled" : "Disabled",
+        .options = {"Disabled", "Enabled"},
         .onChange = [&config](int index) {
             config.setBuzzerEnabled(index == 1);
         },
@@ -826,12 +842,12 @@ void AudioSettingsPage::createAudioSettings() {
     _settings.push_back(buzzerEnabled);
     
     // 音量设置
-    const char* volumeNames[] = {"静音", "低", "中", "高"};
+    const char* volumeNames[] = {"Mute", "Low", "Medium", "High"};
     SettingsItem volume = {
-        .title = "音量",
-        .description = "调节蜂鸣器音量",
+        .title = "Volume",
+        .description = "Adjust buzzer volume",
         .currentValue = volumeNames[config.getBuzzerVolume()],
-        .options = {"静音", "低", "中", "高"},
+        .options = {"Mute", "Low", "Medium", "High"},
         .onChange = [&config](int index) {
             config.setBuzzerVolume(index);
         },
@@ -897,7 +913,7 @@ bool SystemSettingsPage::create() {
     
     _title_label = lv_label_create(_screen);
     lv_obj_set_pos(_title_label, 10, 5);
-    lv_label_set_text(_title_label, "系统设置");
+    lv_label_set_text(_title_label, "System Settings");
     lv_obj_set_style_text_color(_title_label, lv_color_hex(CURRENT_THEME().primary), LV_PART_MAIN);
     lv_obj_set_style_text_font(_title_label, CURRENT_FONT(), LV_PART_MAIN);
     
@@ -906,6 +922,7 @@ bool SystemSettingsPage::create() {
     lv_obj_set_size(_settings_container, 230, 70);
     lv_obj_set_style_bg_opa(_settings_container, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(_settings_container, 0, LV_PART_MAIN);
+    lv_obj_add_style(_settings_container, &UI_MANAGER()->_style_scrollbar, LV_PART_SCROLLBAR);
     
     _info_container = lv_obj_create(_screen);
     lv_obj_set_pos(_info_container, 5, 100);
@@ -963,10 +980,10 @@ void SystemSettingsPage::createSystemSettings() {
     
     // 休眠时间
     SettingsItem sleepTimeout = {
-        .title = "休眠时间",
-        .description = "自动休眠超时时间",
-        .currentValue = String(config.getSleepTimeout() / 1000) + "秒",
-        .options = {"5秒", "10秒", "30秒", "60秒", "关闭"},
+        .title = "Sleep Timeout",
+        .description = "Auto sleep timeout duration",
+        .currentValue = String(config.getSleepTimeout() / 1000) + "s",
+        .options = {"5s", "10s", "30s", "60s", "Off"},
         .onChange = [&config](int index) {
             uint32_t values[] = {5000, 10000, 30000, 60000, 0};
             config.setSleepTimeout(values[index]);
@@ -977,10 +994,10 @@ void SystemSettingsPage::createSystemSettings() {
     
     // 自动保存
     SettingsItem autoSave = {
-        .title = "自动保存",
-        .description = "自动保存配置",
-        .currentValue = config.getAutoSave() ? "开启" : "关闭",
-        .options = {"关闭", "开启"},
+        .title = "Auto Save",
+        .description = "Auto save configuration",
+        .currentValue = config.getAutoSave() ? "Enabled" : "Disabled",
+        .options = {"Disabled", "Enabled"},
         .onChange = [&config](int index) {
             config.setAutoSave(index == 1);
         },
@@ -990,10 +1007,10 @@ void SystemSettingsPage::createSystemSettings() {
     
     // 恢复出厂设置
     SettingsItem factoryReset = {
-        .title = "恢复出厂",
-        .description = "重置为默认设置",
-        .currentValue = "执行",
-        .options = {"执行"},
+        .title = "Factory Reset",
+        .description = "Reset to default settings",
+        .currentValue = "Execute",
+        .options = {"Execute"},
         .onChange = [](int index) {
             // 恢复出厂设置在按键处理中实现
         },
